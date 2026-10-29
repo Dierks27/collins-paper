@@ -58,3 +58,20 @@ jobs:
           gh release create "$GITHUB_REF_NAME" build/libs/*.jar \
             --title "$GITHUB_REF_NAME" --generate-notes \
           || gh release upload "$GITHUB_REF_NAME" build/libs/*.jar --clobber
+
+      # On a push to main that carries a NEW version, cut the release for it (the
+      # jar name carries the version: collins-paper-<version>-mc<mc>.jar -> tag
+      # v<version>-mc<mc>). A version already released is left alone; bump
+      # `version` in build.gradle to cut the next one. Same rule as HomeCraft's.
+      - name: Publish Release from main
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          JAR=$(ls build/libs/collins-paper-*-mc*.jar | head -n1)
+          TAG="v$(basename "$JAR" .jar | sed 's/^collins-paper-//')"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "$TAG is already released - leaving its jar untouched."
+          else
+            gh release create "$TAG" "$JAR" --title "$TAG" --generate-notes --target "$GITHUB_SHA"
+          fi
