@@ -1033,8 +1033,10 @@ public final class CollinsCommand implements TabExecutor {
     private void playVideoFromPlaylist(Player p, Screen screen, Playlist.PlaylistEntry entry) {
         String url = entry.url();
 
-        // ВАЖНО: для плейлистов loop=false чтобы автопереключение работало!
-        // Loop плейлиста управляется через Playlist.isLoop(), а не через Screen.loop()
+        // The screen's loop flag is kept: checkVideoEndings() tries the
+        // playlist first, so a single entry never replays while the playlist
+        // still has a next entry, and with loop on the whole playlist starts
+        // over at its end (see CollinsPaperPlugin#advancePlaylist).
         Screen updated = new Screen(
                 screen.name(), screen.world(),
                 screen.x1(), screen.y1(), screen.z1(),
@@ -1042,7 +1044,7 @@ public final class CollinsCommand implements TabExecutor {
                 screen.axis(),
                 url,
                 true,
-                false, // loop=false для плейлиста!
+                screen.loop(),
                 screen.volume(),
                 screen.youtubeQuality()
         );

@@ -4,31 +4,35 @@ plugins {
 }
 
 group = "org.sawiq"
-version = "1.4"
+version = "1.5"
 
 repositories {
     mavenCentral()
     maven { url = 'https://repo.papermc.io/repository/maven-public/' }
-    maven { url = 'https://repo.lumine.io/repository/maven-public/' } // ProtocolLib [web:159]
 }
 
 dependencies {
-    compileOnly "io.papermc.paper:paper-api:1.21.6-R0.1-SNAPSHOT"
+    // Paper 26.3 API, pinned to a verified-good build for reproducibility.
+    // Bump it deliberately when a newer build is wanted.
+    compileOnly "io.papermc.paper:paper-api:26.3.build.230-stable"
 }
 
 tasks {
     runServer {
-        minecraftVersion("1.21")
+        minecraftVersion("26.3")
     }
 }
 
 java {
-    toolchain.languageVersion = JavaLanguageVersion.of(21)
+    // Paper 26.x runs on Java 25; the toolchain is pinned so the bytecode
+    // matches the live server. Gradle provisions JDK 25 through the foojay
+    // resolver (see settings.gradle) when it is not installed.
+    toolchain.languageVersion = JavaLanguageVersion.of(25)
 }
 
-// On the 26.1 branch we suffix the plugin jar with the targeted MC
-// version so a release ZIP can pair collins-fabric-<v>-mc26.1.2.jar
-// with collins-paper-<v>-mc26.1.2.jar without ambiguity.
+// Suffix the plugin jar with the targeted MC version so a release can pair
+// collins-fabric-<v>-mc26.3.jar with collins-paper-<v>-mc26.3.jar without
+// ambiguity.
 tasks.named("jar") {
-    archiveFileName = "${project.name}-${project.version}-mc26.1.2.jar"
+    archiveFileName = "${project.name}-${project.version}-mc26.3.jar"
 }

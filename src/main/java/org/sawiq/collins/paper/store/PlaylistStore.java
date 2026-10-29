@@ -41,7 +41,7 @@ public final class PlaylistStore {
                 Playlist playlist = Playlist.getOrCreate(screenName);
                 
                 playlist.setEnabled(sec.getBoolean("enabled", true));
-                playlist.setLoop(sec.getBoolean("loop", true));
+                playlist.setLoop(sec.getBoolean("loop", false));
 
                 List<?> entries = sec.getList("entries");
                 if (entries != null) {

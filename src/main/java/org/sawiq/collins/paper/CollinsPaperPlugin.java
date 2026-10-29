@@ -163,6 +163,16 @@ public final class CollinsPaperPlugin extends JavaPlugin implements Listener {
 
         // Async Modrinth update probe. Result is delivered to OP players
         // when they join (one message per admin per server lifetime).
+        // Off by default in this fork: it is private and never published on
+        // Modrinth, so a probe could only ever nag about upstream's releases.
+        if (getConfig().getBoolean("updates.check_modrinth", false)) {
+            startModrinthChecks();
+        }
+
+        getLogger().info("collins-paper enabled. Loaded screens: " + store.all().size());
+    }
+
+    private void startModrinthChecks() {
         versionChecker = new ModrinthVersionChecker(this);
         versionChecker.checkAsync().thenAccept(result -> {
             if (result == null) return;
@@ -194,8 +204,6 @@ public final class CollinsPaperPlugin extends JavaPlugin implements Listener {
                 getLogger().info("Latest Collins-Fabric version on Modrinth: " + latestFabricVersion);
             });
         });
-
-        getLogger().info("collins-paper enabled. Loaded screens: " + store.all().size());
     }
 
     private boolean isClientModOutdated(String clientVersion) {
@@ -737,6 +745,11 @@ public final class CollinsPaperPlugin extends JavaPlugin implements Listener {
         }
 
         Playlist.PlaylistEntry nextEntry = playlist.next();
+        if (nextEntry == null && screen.loop()) {
+            // End of the playlist with the screen's loop flag on: start the
+            // whole playlist over instead of replaying the last video.
+            nextEntry = playlist.jumpTo(1);
+        }
         if (nextEntry == null) {
             return false;
         }
@@ -750,7 +763,7 @@ public final class CollinsPaperPlugin extends JavaPlugin implements Listener {
                 screen.axis(),
                 nextEntry.url(),
                 true,
-                false,
+                screen.loop(),
                 screen.volume(),
                 screen.youtubeQuality()
         );

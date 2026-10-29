@@ -1,5 +1,13 @@
 language: en
 
+# EN: Update checks. This fork is private and is never published on Modrinth,
+#     so the Modrinth probe is OFF by default; turning it on would only ever
+#     report upstream's releases.
+# RU: Проверка обновлений. Этот форк приватный и не публикуется на Modrinth,
+#     поэтому проверка по умолчанию ВЫКЛЮЧЕНА.
+updates:
+  check_modrinth: false
+
 video:
   # EN: Default max YouTube quality for newly created screens.
   #     Use 0 for auto, or one of: 360, 480, 720, 1080, 1440, 2160.

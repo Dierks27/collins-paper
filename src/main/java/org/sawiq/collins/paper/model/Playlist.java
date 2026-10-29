@@ -148,7 +148,10 @@ public final class Playlist {
         this.entries = Collections.synchronizedList(new ArrayList<>());
         this.currentIndex = 0;
         this.enabled = true;
-        this.loop = true;
+        // Off by default: the screen's own loop flag (/collins loop <screen> on)
+        // is the one switch that makes a playlist start over at its end.
+        // This per-playlist flag stays as an override (/collins playlist <screen> loop on).
+        this.loop = false;
     }
 
     // ===== Static API =====
