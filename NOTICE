@@ -1,0 +1,7 @@
+collins-paper
+
+This repository is a fork of Collins (https://github.com/imsawiq/collins) by
+Sawiq, Zorsh and EssciZ, licensed under the GNU General Public License v3.0
+(see LICENSE). It was forked from upstream commit 6d77f687adedc2814265116e76235d81d58bffbf
+(branch 26.1), using the history of the collins-paper subdirectory, and ported
+to Minecraft 26.3. All upstream copyright and author notices are retained.

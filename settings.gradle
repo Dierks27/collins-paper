@@ -1,0 +1,7 @@
+plugins {
+    // Lets Gradle auto-provision the JDK 25 toolchain from a foojay-backed
+    // download service when a matching JDK is not already installed locally.
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.9.0'
+}
+
+rootProject.name = 'collins-paper'

@@ -1,0 +1,60 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write   # allows attaching the jar to a Release on tag pushes
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Gradle 8.14 cannot RUN on JDK 25, so Gradle runs on JDK 21 and its Java
+      # toolchain is pointed at JDK 25 for compilation (Paper 26.3's target).
+      # Two separate setup-java steps: the LAST one installed wins JAVA_HOME, so
+      # JDK 21 must come second to be Gradle's runtime. JDK 25's path is captured
+      # from the first step's output and handed to the toolchain explicitly.
+      - name: Set up JDK 25 (compile toolchain)
+        id: jdk25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - name: Set up JDK 21 (Gradle runtime — sets JAVA_HOME)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Build plugin jar
+        run: >
+          ./gradlew build --no-daemon --stacktrace
+          "-Dorg.gradle.java.installations.paths=${{ steps.jdk25.outputs.path }}"
+          -Dorg.gradle.java.installations.auto-download=false
+
+      - name: Upload jar as a build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: collins-paper-jar
+          path: build/libs/*.jar
+          if-no-files-found: error
+
+      - name: Attach jar to the Release (tag pushes only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" build/libs/*.jar \
+            --title "$GITHUB_REF_NAME" --generate-notes \
+          || gh release upload "$GITHUB_REF_NAME" build/libs/*.jar --clobber
