@@ -34,5 +34,7 @@ java {
 // collins-fabric-<v>-mc26.3.jar with collins-paper-<v>-mc26.3.jar without
 // ambiguity.
 tasks.named("jar") {
+    // Ship the GPL-3.0 text inside the jar, as the Fabric half does.
+    from("LICENSE")
     archiveFileName = "${project.name}-${project.version}-mc26.3.jar"
 }
