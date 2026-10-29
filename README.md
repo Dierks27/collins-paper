@@ -12,8 +12,10 @@ targets Paper 26.3.
 
 ## Build
 
-Requires Java 25 for the compile toolchain; Gradle itself runs on JDK 21 (or
-newer) and provisions JDK 25 through the foojay resolver when it is missing.
+Requires Java 25 for the compile toolchain, which Gradle provisions through
+the foojay resolver when it is missing. Gradle 8.14 itself must run on JDK
+21-24: point `JAVA_HOME` at one of those (a JDK 25 `JAVA_HOME`, as the
+`collins-fabric` build wants, does not work with this Gradle version).
 
 ```bash
 ./gradlew build

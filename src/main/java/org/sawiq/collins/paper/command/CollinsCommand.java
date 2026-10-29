@@ -915,6 +915,9 @@ public final class CollinsCommand implements TabExecutor {
                 }
 
                 Playlist.PlaylistEntry entry = playlist.next();
+                if (entry == null && screen.loop()) {
+                    entry = playlist.jumpTo(1); // screen loop on: wrap like advancePlaylist does
+                }
                 if (entry == null) {
                     lang.send(p, "playlist.ended");
                     return true;

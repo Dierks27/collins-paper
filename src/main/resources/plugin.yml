@@ -4,7 +4,7 @@ main: org.sawiq.collins.paper.CollinsPaperPlugin
 api-version: "1.21"
 folia-supported: true
 authors: [sawiq_, Zorsh, EssciZ]
-website: https://discord.gg/jsH9bGj2NU
+website: https://github.com/Dierks27/collins-paper
 
 commands:
   collins:
