@@ -1,5 +1,5 @@
 name: collins-paper
-version: 1.5
+version: 1.5.1
 main: org.sawiq.collins.paper.CollinsPaperPlugin
 api-version: "1.21"
 folia-supported: true
@@ -14,4 +14,7 @@ commands:
 
 permissions:
   collins.admin:
-    default: op
+    description: Create, control and remove Collins screens
+    # Every player, not only ops. A permissions plugin can still take it away
+    # from a player or group (e.g. LuckPerms: permission set collins.admin false).
+    default: true
