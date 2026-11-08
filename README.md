@@ -33,6 +33,10 @@ the plugin downloads `yt-dlp` and `ffprobe` into `plugins/collins-paper/tools/`
 
 ## Commands (permission `collins.admin`, player only)
 
+Every player has `collins.admin` by default, op or not. To take it away from
+someone, deny it with a permissions plugin, e.g. LuckPerms:
+`lp user <name> permission set collins.admin false`.
+
 - `/collins pos1`, `/collins pos2` - mark the two corners of a flat rectangle (looking at the blocks).
 - `/collins create <name>` - create the screen from the selection.
 - `/collins seturl <screen> <url>` - set a YouTube / Twitch / direct video URL.
@@ -49,5 +53,6 @@ the plugin downloads `yt-dlp` and `ffprobe` into `plugins/collins-paper/tools/`
 - Ported to Paper 26.3 (paper-api 26.3.build.230-stable, Java 25).
 - The Modrinth update checker is off by default (`updates.check_modrinth` in
   `config.yml`); this fork is private and never published there.
+- `collins.admin` defaults to every player instead of ops only.
 - Screen loop and playlists share one switch: `/collins loop <screen> on` makes a
   single video replay and a playlist start over from its first entry.
