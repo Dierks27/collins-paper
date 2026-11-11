@@ -1,5 +1,5 @@
 name: collins-paper
-version: 1.5.1
+version: 1.6.0
 main: org.sawiq.collins.paper.CollinsPaperPlugin
 api-version: "1.21"
 folia-supported: true
@@ -9,7 +9,7 @@ website: https://github.com/Dierks27/collins-paper
 commands:
   collins:
     description: Collins screens manager
-    usage: /collins <pos1|pos2|create|seturl|play|stop|pause|resume|loop|quality|seek|back|volume|radius|remove|list|playlist>
+    usage: /collins <pos1|pos2|create|seturl|play|stop|pause|resume|loop|quality|seek|back|volume|radius|remove|list|playlist|remote>
     aliases: [col]
 
 permissions:

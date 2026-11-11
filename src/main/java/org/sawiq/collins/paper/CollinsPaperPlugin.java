@@ -7,10 +7,13 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.sawiq.collins.paper.command.CollinsCommand;
+import org.sawiq.collins.paper.command.ScreenActions;
 import org.sawiq.collins.paper.model.Playlist;
 import org.sawiq.collins.paper.model.Screen;
 import org.sawiq.collins.paper.net.CollinsClientMessageListener;
 import org.sawiq.collins.paper.net.CollinsMessenger;
+import org.sawiq.collins.paper.remote.RemoteController;
+import org.sawiq.collins.paper.remote.RemoteItem;
 import org.sawiq.collins.paper.selection.SelectionService;
 import org.sawiq.collins.paper.selection.SelectionVisualizer;
 import org.sawiq.collins.paper.state.CollinsRuntimeState;
@@ -36,7 +39,8 @@ public final class CollinsPaperPlugin extends JavaPlugin implements Listener {
     private SelectionService selection;
     private CollinsRuntimeState runtime;
     private Lang lang;
-    private CollinsCommand collinsCommand;
+    private ScreenActions screenActions;
+    private RemoteController remoteController;
     private CollinsClientMessageListener clientMessageListener;
     private int ffprobeTimeoutSeconds = 30;
     private final Set<UUID> moddedPlayers = ConcurrentHashMap.newKeySet();
@@ -81,7 +85,13 @@ public final class CollinsPaperPlugin extends JavaPlugin implements Listener {
 
         messenger = new CollinsMessenger(this, store, runtime, moddedPlayers, outdatedModdedPlayers);
 
-        collinsCommand = new CollinsCommand(this, store, playlistStore, messenger, selection, runtime, lang);
+        // One set of screen actions, two ways in: /collins and the TV Remote.
+        screenActions = new ScreenActions(this, store, playlistStore, messenger, selection, runtime, lang);
+        RemoteItem remoteItem = new RemoteItem(this, lang);
+        remoteController = new RemoteController(this, store, runtime, screenActions, selection, remoteItem, lang);
+        Bukkit.getPluginManager().registerEvents(remoteController, this);
+
+        CollinsCommand collinsCommand = new CollinsCommand(store, screenActions, remoteItem, lang);
         var pluginCmd = getCommand("collins");
         if (pluginCmd != null) {
             pluginCmd.setExecutor(collinsCommand);
@@ -566,8 +576,11 @@ public final class CollinsPaperPlugin extends JavaPlugin implements Listener {
             online.add(p.getUniqueId());
         }
         notifiedAdmins.removeIf(uuid -> !online.contains(uuid));
-        if (collinsCommand != null) {
-            collinsCommand.forgetMissingPlayers(online);
+        if (screenActions != null) {
+            screenActions.forgetMissingPlayers(online);
+        }
+        if (remoteController != null) {
+            remoteController.forgetMissingPlayers(online);
         }
         if (clientMessageListener != null) {
             clientMessageListener.forgetMissingPlayers(online);
@@ -803,6 +816,9 @@ public final class CollinsPaperPlugin extends JavaPlugin implements Listener {
         // clear them: a /reload would lose useful probe history for
         // no benefit.
         SelectionVisualizer.stopAll();
+        if (remoteController != null) {
+            remoteController.closeAllMenus();
+        }
         try {
             store.save();
         } catch (Exception e) {
@@ -844,11 +860,14 @@ public final class CollinsPaperPlugin extends JavaPlugin implements Listener {
         // only useful while the player is online, so drop it on quit
         // instead of letting it accumulate forever.
         notifiedAdmins.remove(uuid);
-        // Per-player command rate limit timestamps are equally pointless
-        // once the player is gone; without this `lastCommandAtMs` would
-        // keep one entry per player who ever ran `/collins ...`.
-        if (collinsCommand != null) {
-            collinsCommand.forgetPlayer(uuid);
+        // Per-player rate limit timestamps, and whatever the player had
+        // going with the TV Remote (a chat prompt, a corner selection), are
+        // equally pointless once the player is gone.
+        if (screenActions != null) {
+            screenActions.forgetPlayer(uuid);
+        }
+        if (remoteController != null) {
+            remoteController.forgetPlayer(uuid);
         }
         if (clientMessageListener != null) {
             clientMessageListener.forgetPlayer(uuid);

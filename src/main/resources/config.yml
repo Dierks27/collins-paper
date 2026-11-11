@@ -8,6 +8,15 @@ language: en
 updates:
   check_modrinth: false
 
+# EN: The item handed out by /collins remote (the "TV Remote"). Any item
+#     name works, e.g. BLAZE_ROD, STICK, CLOCK. Remotes already handed out
+#     keep the item they were made from.
+# RU: Предмет, который выдаёт /collins remote ("Пульт от ТВ"). Подойдёт любой
+#     предмет, например BLAZE_ROD, STICK, CLOCK. Уже выданные пульты остаются
+#     прежним предметом.
+remote:
+  material: BLAZE_ROD
+
 video:
   # EN: Default max YouTube quality for newly created screens.
   #     Use 0 for auto, or one of: 360, 480, 720, 1080, 1440, 2160.
