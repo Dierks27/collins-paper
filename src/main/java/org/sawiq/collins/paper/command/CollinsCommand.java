@@ -35,7 +35,7 @@ public final class CollinsCommand implements TabExecutor {
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player p)) return true;
 
-        if (!p.hasPermission("collins.admin")) {
+        if (!p.hasPermission(ScreenActions.USE)) {
             lang.send(p, "error.no_permission");
             return true;
         }
@@ -219,6 +219,32 @@ public final class CollinsCommand implements TabExecutor {
                 return handlePlaylist(p, args);
             }
 
+            case "owner" -> {
+                if (args.length < 2) { usage(p, "/collins owner <screen> [player|none]"); return true; }
+                String name = args[1];
+                Screen s = actions.requireScreen(p, name);
+                if (s == null) return true;
+
+                if (args.length < 3) {
+                    ScreenStore.Owner owner = store.ownerOf(name);
+                    if (owner == null) lang.send(p, "cmd.owner.none", lang.vars("name", s.name()));
+                    else lang.send(p, "cmd.owner.show", lang.vars("name", s.name(), "owner", owner.name()));
+                    return true;
+                }
+
+                if (args[2].equalsIgnoreCase("none")) {
+                    actions.setOwner(p, name, null);
+                    return true;
+                }
+                Player newOwner = Bukkit.getPlayerExact(args[2]);
+                if (newOwner == null) {
+                    lang.send(p, "error.player_not_found", lang.vars("name", args[2]));
+                    return true;
+                }
+                actions.setOwner(p, name, newOwner);
+                return true;
+            }
+
             case "remote" -> {
                 Player target = p;
                 if (args.length >= 2) {
@@ -269,13 +295,13 @@ public final class CollinsCommand implements TabExecutor {
                     "loop", "quality",
                     "seek", "back",
                     "volume", "radius",
-                    "remove", "list", "playlist", "remote"
+                    "remove", "list", "playlist", "owner", "remote"
             ));
         }
 
         if (args.length == 2) {
             String sub = args[0].toLowerCase(Locale.ROOT);
-            if (sub.equals("seturl") || sub.equals("play") || sub.equals("stop") || sub.equals("pause") || sub.equals("resume") || sub.equals("loop") || sub.equals("quality") || sub.equals("remove") || sub.equals("seek") || sub.equals("back")) {
+            if (sub.equals("seturl") || sub.equals("play") || sub.equals("stop") || sub.equals("pause") || sub.equals("resume") || sub.equals("loop") || sub.equals("quality") || sub.equals("remove") || sub.equals("seek") || sub.equals("back") || sub.equals("owner")) {
                 List<String> names = new ArrayList<>();
                 for (Screen s : store.all()) names.add(s.name());
                 return startsWith(args[1], names);
@@ -294,6 +320,12 @@ public final class CollinsCommand implements TabExecutor {
             List<String> names = new ArrayList<>();
             for (Player online : Bukkit.getOnlinePlayers()) names.add(online.getName());
             return startsWith(args[1], names);
+        }
+
+        if (args.length == 3 && args[0].equalsIgnoreCase("owner")) {
+            List<String> names = new ArrayList<>(List.of("none"));
+            for (Player online : Bukkit.getOnlinePlayers()) names.add(online.getName());
+            return startsWith(args[2], names);
         }
 
         if (args.length == 3 && args[0].equalsIgnoreCase("loop")) {

@@ -91,10 +91,11 @@ public final class Lang {
                 changed = true;
             }
 
-            // Help written before /collins remote existed: show the new command.
+            // Help written before /collins remote or /collins owner existed:
+            // show the new commands.
             String dh = defaults.getString("cmd.help");
             String fh = fileCfg.getString("cmd.help");
-            if (dh != null && fh != null && dh.contains("/collins remote") && !fh.contains("/collins remote")) {
+            if (dh != null && fh != null && (missing(dh, fh, "/collins remote") || missing(dh, fh, "/collins owner"))) {
                 fileCfg.set("cmd.help", dh);
                 changed = true;
             }
@@ -134,6 +135,11 @@ public final class Lang {
         // Пробуем получить как есть
         String s = messages.getString(key);
         return s;
+    }
+
+    /** True when the shipped text mentions {@code what} and the server's copy does not. */
+    private static boolean missing(String shipped, String onDisk, String what) {
+        return shipped.contains(what) && !onDisk.contains(what);
     }
 
     /** Whether the language file defines {@code key}. */

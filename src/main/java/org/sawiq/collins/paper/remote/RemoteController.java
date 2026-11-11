@@ -162,7 +162,7 @@ public final class RemoteController implements Listener {
         Long last = lastUseAtMs.put(p.getUniqueId(), now);
         if (last != null && now - last >= 0 && now - last < DEBOUNCE_MS) return;
 
-        if (!p.hasPermission("collins.admin")) {
+        if (!p.hasPermission(ScreenActions.USE)) {
             lang.send(p, "error.no_permission");
             return;
         }
@@ -181,6 +181,8 @@ public final class RemoteController implements Listener {
 
         Screen looked = findLookedAt(p);
         if (looked != null) {
+            // Someone else's screen: say whose it is instead of opening it.
+            if (actions.requireOwnScreen(p, looked.name()) == null) return;
             new RemoteMenu(this, p, RemoteMenu.View.SCREEN, looked.name()).open();
         } else {
             new RemoteMenu(this, p, RemoteMenu.View.LIST, null).open();
@@ -229,6 +231,7 @@ public final class RemoteController implements Listener {
     // ==================== New screen ====================
 
     void startNewScreen(Player p) {
+        if (!actions.checkScreenLimit(p)) return; // no point marking corners for a screen they cannot have
         prompts.remove(p.getUniqueId());
         selection.forget(p.getUniqueId());
         SelectionVisualizer.stop(p);
@@ -280,6 +283,10 @@ public final class RemoteController implements Listener {
         if (ScreenFactory.create("x", sel.pos1(), sel.pos2(), YouTubeQuality.DEFAULT) == null) {
             prompts.remove(p.getUniqueId());
             lang.send(p, "error.selection_invalid");
+            return;
+        }
+        if (!actions.checkBuildAllowed(p, sel.pos1(), sel.pos2())) {
+            prompts.remove(p.getUniqueId());
             return;
         }
         askScreenName(p);
@@ -342,7 +349,7 @@ public final class RemoteController implements Listener {
                 lang.send(p, "remote.prompt.cancelled");
                 return;
             }
-            if (!p.hasPermission("collins.admin")) {
+            if (!p.hasPermission(ScreenActions.USE)) {
                 if (prompt.onAbort() != null) prompt.onAbort().run();
                 lang.send(p, "error.no_permission");
                 return;

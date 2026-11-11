@@ -30,6 +30,22 @@ remote:
   material: BLAZE_ROD
   craftable: true
 
+# EN: Screens belong to the player who made them (since 1.8.0). Players with
+#     collins.use manage their own; collins.admin manages everyone's.
+#     maxPerPlayer: how many screens one player may own. 0 = no limit.
+#         Admins have no limit.
+#     respectProtection: refuse a screen where Towny or WorldGuard would not
+#         let the player build. Does nothing when neither is installed.
+#         Admins are not checked.
+# RU: Экран принадлежит игроку, который его создал (с 1.8.0).
+#     maxPerPlayer: сколько экранов может быть у одного игрока. 0 = без
+#         лимита. На админов лимит не действует.
+#     respectProtection: не давать ставить экран там, где Towny или
+#         WorldGuard не разрешают игроку строить. Админы не проверяются.
+screens:
+  maxPerPlayer: 3
+  respectProtection: true
+
 video:
   # EN: Default max YouTube quality for newly created screens.
   #     Use 0 for auto, or one of: 360, 480, 720, 1080, 1440, 2160.
