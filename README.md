@@ -53,7 +53,16 @@ someone, deny it with a permissions plugin, e.g. LuckPerms:
 ## TV Remote
 
 `/collins remote` gives you a TV Remote (`/collins remote <player>` gives one
-to someone else), so nobody has to type the commands above. Using it needs
+to someone else), so nobody has to type the commands above. It can also be
+crafted, and the recipe shows up in the recipe book (turn that off with
+`remote.craftable: false` in `config.yml`):
+
+```
+  .  G  .      G = glass pane
+  I  R  I      R = redstone dust
+  .  I  .      I = iron ingot
+```
+ Using it needs
 `collins.admin`, like the commands. Everything it does goes through the same
 code as the commands, and it needs nothing on the client beyond the mod.
 

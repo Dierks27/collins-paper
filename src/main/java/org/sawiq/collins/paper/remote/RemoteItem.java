@@ -3,10 +3,12 @@ package org.sawiq.collins.paper.remote;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -34,6 +36,36 @@ public final class RemoteItem {
 
     public JavaPlugin plugin() {
         return plugin;
+    }
+
+    /** The key of the crafting recipe (and of the item's tag). */
+    public NamespacedKey key() {
+        return key;
+    }
+
+    /**
+     * Adds the crafting recipe, unless {@code remote.craftable} is off:
+     * <pre>
+     *   . G .     G = glass pane
+     *   I R I     R = redstone dust
+     *   . I .     I = iron ingot
+     * </pre>
+     * Returns whether the recipe is registered.
+     */
+    public boolean registerRecipe() {
+        Bukkit.removeRecipe(key); // a /reload leaves the old one behind
+        if (!plugin.getConfig().getBoolean("remote.craftable", true)) return false;
+
+        ShapedRecipe recipe = new ShapedRecipe(key, create());
+        recipe.shape(" G ", "IRI", " I ");
+        recipe.setIngredient('G', Material.GLASS_PANE);
+        recipe.setIngredient('R', Material.REDSTONE);
+        recipe.setIngredient('I', Material.IRON_INGOT);
+        return Bukkit.addRecipe(recipe);
+    }
+
+    public void unregisterRecipe() {
+        Bukkit.removeRecipe(key);
     }
 
     public ItemStack create() {

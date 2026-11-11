@@ -41,6 +41,7 @@ public final class CollinsPaperPlugin extends JavaPlugin implements Listener {
     private Lang lang;
     private ScreenActions screenActions;
     private RemoteController remoteController;
+    private RemoteItem remoteItem;
     private CollinsClientMessageListener clientMessageListener;
     private int ffprobeTimeoutSeconds = 30;
     private final Set<UUID> moddedPlayers = ConcurrentHashMap.newKeySet();
@@ -87,9 +88,10 @@ public final class CollinsPaperPlugin extends JavaPlugin implements Listener {
 
         // One set of screen actions, two ways in: /collins and the TV Remote.
         screenActions = new ScreenActions(this, store, playlistStore, messenger, selection, runtime, lang);
-        RemoteItem remoteItem = new RemoteItem(this, lang);
+        remoteItem = new RemoteItem(this, lang);
         remoteController = new RemoteController(this, store, runtime, screenActions, selection, remoteItem, lang);
         Bukkit.getPluginManager().registerEvents(remoteController, this);
+        remoteItem.registerRecipe();
 
         CollinsCommand collinsCommand = new CollinsCommand(store, screenActions, remoteItem, lang);
         var pluginCmd = getCommand("collins");
@@ -818,6 +820,9 @@ public final class CollinsPaperPlugin extends JavaPlugin implements Listener {
         SelectionVisualizer.stopAll();
         if (remoteController != null) {
             remoteController.closeAllMenus();
+        }
+        if (remoteItem != null) {
+            remoteItem.unregisterRecipe();
         }
         try {
             store.save();

@@ -14,8 +14,19 @@ updates:
 # RU: Предмет, который выдаёт /collins remote ("Пульт от ТВ"). Подойдёт любой
 #     предмет, например BLAZE_ROD, STICK, CLOCK. Уже выданные пульты остаются
 #     прежним предметом.
+#
+#     craftable: players with collins.admin can also craft the remote
+#     (shown in their recipe book):
+#         . G .      G = glass pane
+#         I R I      R = redstone dust
+#         . I .      I = iron ingot
+#     Set to false to make /collins remote the only way to get one.
+# RU: craftable: игроки с collins.admin могут скрафтить пульт (рецепт есть
+#     в книге рецептов): стеклянная панель сверху, железо-редстоун-железо
+#     посередине, железо снизу. false = пульт выдаётся только командой.
 remote:
   material: BLAZE_ROD
+  craftable: true
 
 video:
   # EN: Default max YouTube quality for newly created screens.

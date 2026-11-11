@@ -16,9 +16,12 @@ import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.Keyed;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.util.BoundingBox;
 import org.bukkit.util.RayTraceResult;
@@ -86,6 +89,26 @@ public final class RemoteController implements Listener {
         this.selection = selection;
         this.item = item;
         this.lang = lang;
+    }
+
+    // ==================== Crafting the remote ====================
+
+    /** The remote is only craftable by players who may use it. */
+    @EventHandler
+    public void onPrepareCraft(PrepareItemCraftEvent e) {
+        if (!(e.getRecipe() instanceof Keyed keyed) || !keyed.getKey().equals(item.key())) return;
+        if (e.getViewers().stream().noneMatch(v -> v.hasPermission("collins.admin"))) {
+            e.getInventory().setResult(null);
+        }
+    }
+
+    /** Puts the recipe in the recipe book, so nobody has to look it up. */
+    @EventHandler
+    public void onJoin(PlayerJoinEvent e) {
+        Player p = e.getPlayer();
+        if (p.hasPermission("collins.admin") && Bukkit.getRecipe(item.key()) != null) {
+            p.discoverRecipe(item.key());
+        }
     }
 
     // ==================== Using the remote ====================
