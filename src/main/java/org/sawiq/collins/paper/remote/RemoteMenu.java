@@ -42,6 +42,7 @@ final class RemoteMenu implements InventoryHolder {
     private static final int PAGE_SIZE = 45;
     private static final long CONFIRM_MS = 5000L;
     private static final int SEEK_SECONDS = 30;
+    private static final java.util.Set<String> SHOWS_OWNER = java.util.Set.of("remote.list.screen", "remote.screen.info");
 
     /** {@code limited}: counts against the per-player action rate limit. */
     private record Button(boolean limited, Consumer<ClickType> onClick) {}
@@ -99,7 +100,7 @@ final class RemoteMenu implements InventoryHolder {
     }
 
     void click(int slot, ClickType type) {
-        if (!player.hasPermission("collins.admin")) {
+        if (!player.hasPermission(ScreenActions.USE)) {
             lang.send(player, "error.no_permission");
             ctl.later(player, player::closeInventory);
             return;
@@ -124,8 +125,9 @@ final class RemoteMenu implements InventoryHolder {
             case LIST -> renderList();
             case SCREEN, PLAYLIST -> {
                 Screen s = ctl.store.get(screenName);
-                if (s == null) {
-                    // Removed (by this menu or by someone else) while we were looking at it.
+                if (s == null || !ctl.actions.canManage(player, screenName)) {
+                    // Removed (by this menu or by someone else) while we were
+                    // looking at it, or handed to another owner.
                     ctl.later(player, () -> new RemoteMenu(ctl, player, View.LIST, null).open());
                     return false;
                 }
@@ -142,7 +144,9 @@ final class RemoteMenu implements InventoryHolder {
     }
 
     private void renderList() {
+        // Admins see every screen; everyone else the ones they can manage.
         List<Screen> screens = new ArrayList<>(ctl.store.all());
+        screens.removeIf(s -> !ctl.actions.canManage(player, s.name()));
         screens.sort(Comparator.comparing(s -> s.name().toLowerCase()));
         page = clampPage(page, screens.size());
 
@@ -167,7 +171,9 @@ final class RemoteMenu implements InventoryHolder {
             ctl.startNewScreen(player);
         });
 
-        // Volume and hear radius are not per screen: they apply to the whole server.
+        // Volume and hear radius are not per screen: they apply to the whole
+        // server, so only admins get the buttons.
+        if (!ctl.actions.isAdmin(player)) return;
         float volume = ctl.runtime.globalVolume;
         Map<String, String> volumeVars = lang.vars("value", String.format(java.util.Locale.ROOT, "%.1f", volume));
         set(47, Material.RED_STAINED_GLASS_PANE, false, "remote.list.volume_down", volumeVars, false,
@@ -315,7 +321,12 @@ final class RemoteMenu implements InventoryHolder {
         ItemStack stack = new ItemStack(material);
         ItemMeta meta = stack.getItemMeta();
         meta.displayName(RemoteItem.text(lang.tr(key + ".name", vars)));
-        if (lang.has(key + ".lore")) meta.lore(RemoteItem.lines(lang.tr(key + ".lore", vars)));
+        List<net.kyori.adventure.text.Component> lore = new ArrayList<>();
+        if (lang.has(key + ".lore")) lore.addAll(RemoteItem.lines(lang.tr(key + ".lore", vars)));
+        // The owner goes on as its own line, so it shows even with a lang
+        // file whose lore texts were written before screens had owners.
+        if (SHOWS_OWNER.contains(key)) lore.add(RemoteItem.text(lang.tr("remote.owner_line", vars)));
+        if (!lore.isEmpty()) meta.lore(lore);
         if (glint) meta.setEnchantmentGlintOverride(true);
         stack.setItemMeta(meta);
         drawing[slot] = stack;
@@ -335,6 +346,7 @@ final class RemoteMenu implements InventoryHolder {
 
     private Map<String, String> screenVars(Screen s) {
         long duration = ctl.runtime.getDurationMs(s.name(), s.mp4Url());
+        var owner = ctl.store.ownerOf(s.name());
         String url = s.mp4Url() == null || s.mp4Url().isBlank() ? lang.raw("remote.none") : shorten(s.mp4Url());
         return lang.vars(
                 "name", s.name(),
@@ -344,6 +356,7 @@ final class RemoteMenu implements InventoryHolder {
                 "url", url,
                 "loop", lang.raw(s.loop() ? "remote.on" : "remote.off"),
                 "quality", YouTubeQuality.display(s.youtubeQuality()),
+                "owner", owner == null ? lang.raw("remote.none") : owner.name(),
                 "world", s.world(),
                 "x1", s.x1(), "y1", s.y1(), "z1", s.z1(),
                 "x2", s.x2(), "y2", s.y2(), "z2", s.z2(),

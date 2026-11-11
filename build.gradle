@@ -4,17 +4,25 @@ plugins {
 }
 
 group = "org.sawiq"
-version = "1.7.0"
+version = "1.8.0"
 
 repositories {
     mavenCentral()
     maven { url = 'https://repo.papermc.io/repository/maven-public/' }
+    // Protection plugins, compile-time only (soft dependencies at runtime).
+    maven { url = 'https://maven.enginehub.org/repo/' }
+    maven { url = 'https://repo.glaremasters.me/repository/towny/' }
 }
 
 dependencies {
     // Paper 26.3 API, pinned to a verified-good build for reproducibility.
     // Bump it deliberately when a newer build is wanted.
     compileOnly "io.papermc.paper:paper-api:26.3.build.230-stable"
+
+    // Only their API is called (see protect/BuildProtection), so none of
+    // their own dependencies are pulled in.
+    compileOnly("com.sk89q.worldguard:worldguard-bukkit:7.0.21") { transitive = false }
+    compileOnly("com.palmergames.bukkit.towny:towny:0.103.2.15") { transitive = false }
 
     testImplementation platform("org.junit:junit-bom:5.13.4")
     testImplementation "org.junit.jupiter:junit-jupiter"

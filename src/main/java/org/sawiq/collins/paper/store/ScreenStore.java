@@ -15,6 +15,17 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class ScreenStore {
     private final Map<String, Screen> screens = new ConcurrentHashMap<>();
+
+    /** Who made a screen. The name is only what they were called then, for display. */
+    public record Owner(UUID id, String name) {}
+
+    /**
+     * Screen name (lower case) -> owner. Kept beside the screens instead of
+     * inside {@link Screen}, so the many places that rebuild a Screen to
+     * change one field cannot drop the owner. A screen without an entry has
+     * no owner and is managed by admins only.
+     */
+    private final Map<String, Owner> owners = new ConcurrentHashMap<>();
     private final JavaPlugin plugin;
     private final File file;
 
@@ -36,11 +47,32 @@ public final class ScreenStore {
     }
 
     public Screen remove(String name) {
+        owners.remove(name.toLowerCase());
         return screens.remove(name.toLowerCase());
+    }
+
+    /** The screen's owner, or null when it has none. */
+    public Owner ownerOf(String name) {
+        return owners.get(name.toLowerCase());
+    }
+
+    /** Sets the screen's owner; null clears it. */
+    public void setOwner(String name, Owner owner) {
+        if (owner == null) owners.remove(name.toLowerCase());
+        else owners.put(name.toLowerCase(), owner);
+    }
+
+    public int countOwnedBy(UUID id) {
+        int n = 0;
+        for (Owner o : owners.values()) {
+            if (o.id().equals(id)) n++;
+        }
+        return n;
     }
 
     public void load() {
         screens.clear();
+        owners.clear();
         if (!file.exists()) return;
 
         FileConfiguration cfg = YamlConfiguration.loadConfiguration(file);
@@ -84,6 +116,16 @@ public final class ScreenStore {
                     (float) volumeD,
                     youtubeQuality
             ));
+
+            String ownerId = cfg.getString(path + "owner");
+            if (ownerId != null) {
+                try {
+                    setOwner(name, new Owner(UUID.fromString(ownerId), cfg.getString(path + "ownerName", "?")));
+                } catch (IllegalArgumentException e) {
+                    plugin.getLogger().warning("screens.yml: screen '" + name + "' has a broken owner '" + ownerId
+                            + "'; treating it as having no owner.");
+                }
+            }
         }
     }
 
@@ -111,6 +153,11 @@ public final class ScreenStore {
             cfg.set(path + "loop", s.loop());
             cfg.set(path + "volume", (double) s.volume());
             cfg.set(path + "youtubeQuality", s.youtubeQuality());
+            Owner owner = ownerOf(s.name());
+            if (owner != null) {
+                cfg.set(path + "owner", owner.id().toString());
+                cfg.set(path + "ownerName", owner.name());
+            }
         }
 
         try {

@@ -32,11 +32,34 @@ Drop the jar into the server's `plugins/` folder and restart. On first start
 the plugin downloads `yt-dlp` and `ffprobe` into `plugins/collins-paper/tools/`
 (see `config.yml`, section `ffprobe`).
 
-## Commands (permission `collins.admin`, player only)
+## Permissions and whose screen it is
 
-Every player has `collins.admin` by default, op or not. To take it away from
-someone, deny it with a permissions plugin, e.g. LuckPerms:
-`lp user <name> permission set collins.admin false`.
+A screen belongs to the player who made it.
+
+| Permission | Default | Lets you |
+| --- | --- | --- |
+| `collins.use` | everyone | make screens, and control, change and remove **your own** |
+| `collins.admin` | ops | do that to **anyone's** screen, change the server-wide volume and hear radius, and reassign owners |
+| `collins.url.any` | ops | put any address on a screen, not only YouTube and Twitch |
+| `collins.remote.craft` | everyone | craft the TV Remote |
+
+For an admin group that is not op, e.g. LuckPerms:
+`lp group admin permission set collins.admin true` and
+`lp group admin permission set collins.url.any true`.
+
+- **Screens made before 1.8.0 have no owner** and can only be changed by
+  admins. Hand one to a player with `/collins owner <screen> <player>` (the
+  player has to be online); `/collins owner <screen> none` clears it, and
+  `/collins owner <screen>` shows it.
+- **Limit**: a player may own `screens.maxPerPlayer` screens (3 as shipped,
+  0 = no limit). Admins have no limit.
+- **Protected land**: with Towny or WorldGuard installed, a player cannot put
+  a screen where they could not build (`screens.respectProtection`). Admins
+  are not checked. With neither plugin installed nothing is checked.
+- A name that is taken cannot be reused by someone who may not manage that
+  screen.
+
+## Commands (permission `collins.use`, player only)
 
 - `/collins pos1`, `/collins pos2` - mark the two corners of a flat rectangle (looking at the blocks).
 - `/collins create <name>` - create the screen from the selection.
@@ -45,9 +68,10 @@ someone, deny it with a permissions plugin, e.g. LuckPerms:
 - `/collins loop <screen> on|off` - replay when the video ends (default off). With a playlist on the screen, the whole playlist starts over instead.
 - `/collins quality <screen> [auto|360|480|720|1080|1440|2160]`.
 - `/collins seek <screen> <seconds>`, `/collins back <screen> <seconds>`.
-- `/collins volume set <0..2>|reset`, `/collins radius set <1..512>|reset`.
+- `/collins volume set <0..2>|reset`, `/collins radius set <1..512>|reset` (admins; both are server-wide).
 - `/collins playlist <screen> add <url>|remove <index>|play [index]|next|prev|list|clear|loop on|off|enable|disable`.
 - `/collins list`, `/collins remove <screen>`.
+- `/collins owner <screen> [player|none]` - show the owner; admins can change it.
 - `/collins remote [player]` - hand out a TV Remote (see below).
 
 ## Which sites can be played
@@ -93,15 +117,16 @@ recipe altogether, set `remote.craftable: false` in `config.yml`.
   .  I  .      I = iron ingot
 ```
 
-Using it needs `collins.admin`, like the commands. Everything it does goes through the same
+Using it needs `collins.use`, like the commands. Everything it does goes through the same
 code as the commands, and it needs nothing on the client beyond the mod.
 
 - **Right-click while looking at a screen** (up to 200 blocks away): that
   screen's menu. Play / Pause / Resume / Stop, back and forward 30 seconds,
   loop, YouTube quality, Set URL, the playlist, and Remove screen (click
   twice).
-- **Right-click anywhere else**: the list of all screens, with a New screen
-  button and the server-wide global volume and hear radius.
+- **Right-click anywhere else**: the list of your screens (admins: all
+  screens), with a New screen button and, for admins, the server-wide global
+  volume and hear radius.
 - **Set URL** and the playlist's **Add a video** close the menu and take your
   next chat message as the URL. The message is not shown to anyone. Type
   `cancel` to back out; it also gives up after 60 seconds. Set URL starts
@@ -124,6 +149,7 @@ hit or open anything. The item is `BLAZE_ROD` by default (`remote.material` in
 - Ported to Paper 26.3 (paper-api 26.3.build.230-stable, Java 25).
 - The Modrinth update checker is off by default (`updates.check_modrinth` in
   `config.yml`); this fork is private and never published there.
-- `collins.admin` defaults to every player instead of ops only.
+- Screens have owners: `collins.use` (everyone) for your own, `collins.admin`
+  (ops) for everyone's; a per-player limit; Towny/WorldGuard protection.
 - Screen loop and playlists share one switch: `/collins loop <screen> on` makes a
   single video replay and a playlist start over from its first entry.

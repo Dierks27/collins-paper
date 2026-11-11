@@ -12,6 +12,7 @@ import org.sawiq.collins.paper.model.Playlist;
 import org.sawiq.collins.paper.model.Screen;
 import org.sawiq.collins.paper.net.CollinsClientMessageListener;
 import org.sawiq.collins.paper.net.CollinsMessenger;
+import org.sawiq.collins.paper.protect.BuildProtection;
 import org.sawiq.collins.paper.remote.RemoteController;
 import org.sawiq.collins.paper.remote.RemoteItem;
 import org.sawiq.collins.paper.selection.SelectionService;
@@ -96,7 +97,8 @@ public final class CollinsPaperPlugin extends JavaPlugin implements Listener {
         messenger = new CollinsMessenger(this, store, runtime, moddedPlayers, outdatedModdedPlayers, urlPolicy);
 
         // One set of screen actions, two ways in: /collins and the TV Remote.
-        screenActions = new ScreenActions(this, store, playlistStore, messenger, selection, runtime, lang, urlPolicy);
+        screenActions = new ScreenActions(this, store, playlistStore, messenger, selection, runtime, lang, urlPolicy,
+                new BuildProtection(getLogger()));
         remoteItem = new RemoteItem(this, lang);
         remoteController = new RemoteController(this, store, runtime, screenActions, selection, remoteItem, lang);
         Bukkit.getPluginManager().registerEvents(remoteController, this);
@@ -834,9 +836,22 @@ public final class CollinsPaperPlugin extends JavaPlugin implements Listener {
                     "Hosts regular players may play. A listed host also covers its subdomains."));
             changed = true;
         }
+        if (!cfg.isSet("screens.maxPerPlayer")) {
+            cfg.set("screens.maxPerPlayer", 3);
+            cfg.setComments("screens", java.util.List.of(
+                    "Screens belong to the player who made them (since 1.8.0).",
+                    "maxPerPlayer: screens one player may own, 0 = no limit (admins have none).",
+                    "respectProtection: refuse a screen where Towny or WorldGuard would not let the player build."));
+            changed = true;
+        }
+        if (!cfg.isSet("screens.respectProtection")) {
+            cfg.set("screens.respectProtection", true);
+            changed = true;
+        }
         if (changed) {
             saveConfig();
-            getLogger().info("config.yml: added security.restrictHosts and security.allowedHosts (new in 1.7.0).");
+            getLogger().info("config.yml: added the settings introduced since it was written"
+                    + " (security.restrictHosts, security.allowedHosts, screens.*).");
         }
     }
 

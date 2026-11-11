@@ -6,6 +6,7 @@ import org.sawiq.collins.paper.CollinsPaperPlugin;
 import org.sawiq.collins.paper.model.Playlist;
 import org.sawiq.collins.paper.model.Screen;
 import org.sawiq.collins.paper.net.CollinsMessenger;
+import org.sawiq.collins.paper.protect.BuildProtection;
 import org.sawiq.collins.paper.selection.SelectionService;
 import org.sawiq.collins.paper.selection.SelectionVisualizer;
 import org.sawiq.collins.paper.state.CollinsRuntimeState;
@@ -40,6 +41,11 @@ public final class ScreenActions {
 
     private static final Pattern SCREEN_NAME_RE = Pattern.compile("^[a-zA-Z0-9_-]{1,32}$");
 
+    /** Make screens, and control, change and remove your own. */
+    public static final String USE = "collins.use";
+    /** Manage anyone's screens and the server-wide settings. */
+    public static final String ADMIN = "collins.admin";
+
     /** How far pos1/pos2 reach, in blocks. */
     public static final int REACH = 200;
 
@@ -51,6 +57,7 @@ public final class ScreenActions {
     private final CollinsRuntimeState runtime;
     private final Lang lang;
     private final UrlPolicy urlPolicy;
+    private final BuildProtection protection;
 
     private final Map<UUID, Long> lastActionAtMs = new ConcurrentHashMap<>();
 
@@ -61,7 +68,8 @@ public final class ScreenActions {
                          SelectionService selection,
                          CollinsRuntimeState runtime,
                          Lang lang,
-                         UrlPolicy urlPolicy) {
+                         UrlPolicy urlPolicy,
+                         BuildProtection protection) {
         this.plugin = plugin;
         this.store = store;
         this.playlistStore = playlistStore;
@@ -70,6 +78,7 @@ public final class ScreenActions {
         this.runtime = runtime;
         this.lang = lang;
         this.urlPolicy = urlPolicy;
+        this.protection = protection;
     }
 
     // ==================== Rate limit ====================
@@ -112,6 +121,109 @@ public final class ScreenActions {
         Screen s = store.get(name);
         if (s == null) lang.send(p, "error.screen_not_found", lang.vars("name", name));
         return s;
+    }
+
+    // ==================== Whose screen is it ====================
+
+    public boolean isAdmin(Player p) {
+        return p.hasPermission(ADMIN);
+    }
+
+    /**
+     * May this player control, change and remove the screen? Admins may
+     * for every screen; everyone else only for the ones they made. A screen
+     * with no owner (made before 1.8.0, or cleared) is for admins only.
+     */
+    public boolean canManage(Player p, String name) {
+        if (isAdmin(p)) return true;
+        ScreenStore.Owner owner = store.ownerOf(name);
+        return owner != null && owner.id().equals(p.getUniqueId());
+    }
+
+    /**
+     * The screen, if it exists and the player may manage it; otherwise
+     * {@code null} after telling the player why not. Every action that
+     * changes a screen starts here.
+     */
+    public Screen requireOwnScreen(Player p, String name) {
+        Screen s = requireScreen(p, name);
+        if (s == null) return null;
+        if (canManage(p, name)) return s;
+
+        ScreenStore.Owner owner = store.ownerOf(name);
+        if (owner == null) lang.send(p, "error.screen_admin_only", lang.vars("name", s.name()));
+        else lang.send(p, "error.not_your_screen", lang.vars("name", s.name(), "owner", owner.name()));
+        return null;
+    }
+
+    private boolean requireAdmin(Player p) {
+        if (isAdmin(p)) return true;
+        lang.send(p, "error.admin_only");
+        return false;
+    }
+
+    /** Admin: hand a screen to {@code newOwner}, or to nobody (null). */
+    public boolean setOwner(Player p, String name, Player newOwner) {
+        if (!requireAdmin(p)) return false;
+        Screen s = requireScreen(p, name);
+        if (s == null) return false;
+
+        if (newOwner == null) {
+            store.setOwner(s.name(), null);
+            lang.send(p, "cmd.owner.cleared", lang.vars("name", s.name()));
+        } else {
+            store.setOwner(s.name(), new ScreenStore.Owner(newOwner.getUniqueId(), newOwner.getName()));
+            lang.send(p, "cmd.owner.set", lang.vars("name", s.name(), "owner", newOwner.getName()));
+        }
+        store.save();
+        plugin.getLogger().info(p.getName() + " set owner of '" + s.name() + "' -> "
+                + (newOwner == null ? "nobody" : newOwner.getName()));
+        return true;
+    }
+
+    /**
+     * May the player have one more screen? Tells them when they are at
+     * {@code screens.maxPerPlayer}. Admins have no cap.
+     */
+    public boolean checkScreenLimit(Player p) {
+        int max = cfgInt("screens.maxPerPlayer", 3);
+        if (max <= 0 || isAdmin(p)) return true;
+        if (store.countOwnedBy(p.getUniqueId()) < max) return true;
+        lang.send(p, "error.screen_limit", lang.vars("max", max));
+        return false;
+    }
+
+    /**
+     * May the player put a screen on the rectangle between the two blocks?
+     * Refused, with a message, where a protection plugin (Towny, WorldGuard)
+     * would not let them build. Admins are not checked.
+     */
+    public boolean checkBuildAllowed(Player p, Block a, Block b) {
+        if (isAdmin(p) || !cfgBool("screens.respectProtection", true)) return true;
+
+        int x1 = Math.min(a.getX(), b.getX()), x2 = Math.max(a.getX(), b.getX());
+        int y1 = Math.min(a.getY(), b.getY()), y2 = Math.max(a.getY(), b.getY());
+        int z1 = Math.min(a.getZ(), b.getZ()), z2 = Math.max(a.getZ(), b.getZ());
+
+        // Every block of an ordinary screen; a coarser grid (edges always
+        // included) once it is big enough for that to cost real time.
+        long blocks = (long) (x2 - x1 + 1) * (y2 - y1 + 1) * (z2 - z1 + 1);
+        int step = (int) Math.max(1, Math.ceil(Math.sqrt(blocks / 4096.0)));
+
+        for (int x = x1; ; x = Math.min(x2, x + step)) {
+            for (int y = y1; ; y = Math.min(y2, y + step)) {
+                for (int z = z1; ; z = Math.min(z2, z + step)) {
+                    if (!protection.canBuild(p, a.getWorld().getBlockAt(x, y, z))) {
+                        lang.send(p, "error.screen_protected");
+                        return false;
+                    }
+                    if (z == z2) break;
+                }
+                if (y == y2) break;
+            }
+            if (x == x2) break;
+        }
+        return true;
     }
 
     public boolean isValidScreenName(String name) {
@@ -175,7 +287,20 @@ public final class ScreenActions {
             return false;
         }
 
+        // Creating over an existing name redefines that screen, as it always
+        // has, but only for someone who may manage it.
+        Screen existing = store.get(name);
+        if (existing != null && !canManage(p, name)) {
+            lang.send(p, "error.screen_exists", lang.vars("name", existing.name()));
+            return false;
+        }
+        ScreenStore.Owner existingOwner = existing == null ? null : store.ownerOf(name);
+        boolean alreadyTheirs = existingOwner != null && existingOwner.id().equals(p.getUniqueId());
+        if (!alreadyTheirs && !checkScreenLimit(p)) return false;
+        if (!checkBuildAllowed(p, sel.pos1(), sel.pos2())) return false;
+
         store.put(screen);
+        store.setOwner(screen.name(), new ScreenStore.Owner(p.getUniqueId(), p.getName()));
         store.save();
 
         runtime.resetPlayback(screen.name()); // чтобы новый экран не унаследовал таймер
@@ -189,6 +314,7 @@ public final class ScreenActions {
     }
 
     public boolean removeScreen(Player p, String name) {
+        if (requireOwnScreen(p, name) == null) return false;
         Screen removed = store.remove(name);
         if (removed == null) {
             lang.send(p, "error.screen_not_found", lang.vars("name", name));
@@ -221,7 +347,7 @@ public final class ScreenActions {
         }
         if (!urlPermitted(p, safeUrl)) return false;
 
-        Screen s = requireScreen(p, name);
+        Screen s = requireOwnScreen(p, name);
         if (s == null) return false;
 
         Screen updated = new Screen(
@@ -267,7 +393,7 @@ public final class ScreenActions {
     }
 
     private boolean start(Player p, String name, boolean fromZero) {
-        Screen s = requireScreen(p, name);
+        Screen s = requireOwnScreen(p, name);
         if (s == null) return false;
 
         // Server-side preflight: refuse `play` for URLs we
@@ -290,7 +416,7 @@ public final class ScreenActions {
     }
 
     public boolean stop(Player p, String name) {
-        Screen s = requireScreen(p, name);
+        Screen s = requireOwnScreen(p, name);
         if (s == null) return false;
 
         // stop = выключить и сбросить позицию на 0
@@ -307,7 +433,7 @@ public final class ScreenActions {
     }
 
     public boolean pause(Player p, String name) {
-        Screen s = requireScreen(p, name);
+        Screen s = requireOwnScreen(p, name);
         if (s == null) return false;
 
         // pause = выключить, но сохранить позицию
@@ -329,7 +455,7 @@ public final class ScreenActions {
     }
 
     public boolean setLoop(Player p, String name, boolean loopOn) {
-        Screen s = requireScreen(p, name);
+        Screen s = requireOwnScreen(p, name);
         if (s == null) return false;
 
         store.put(s.withLoop(loopOn));
@@ -341,7 +467,7 @@ public final class ScreenActions {
     }
 
     public boolean setQuality(Player p, String name, int quality) {
-        Screen s = requireScreen(p, name);
+        Screen s = requireOwnScreen(p, name);
         if (s == null) return false;
 
         Screen updated = s.withYoutubeQuality(quality);
@@ -359,7 +485,7 @@ public final class ScreenActions {
 
     /** Jump forward (or, with a negative value, backward) by {@code seconds}. */
     public boolean seek(Player p, String name, double seconds) {
-        Screen s = requireScreen(p, name);
+        Screen s = requireOwnScreen(p, name);
         if (s == null) return false;
         if (!checkSeekSize(p, seconds)) return false;
 
@@ -423,7 +549,7 @@ public final class ScreenActions {
 
     /** Jump backward by {@code seconds} (the sign is ignored). */
     public boolean back(Player p, String name, double seconds) {
-        Screen s = requireScreen(p, name);
+        Screen s = requireOwnScreen(p, name);
         if (s == null) return false;
         if (!checkSeekSize(p, seconds)) return false;
 
@@ -469,6 +595,7 @@ public final class ScreenActions {
     // ==================== Server-wide settings ====================
 
     public void setGlobalVolume(Player p, float v) {
+        if (!requireAdmin(p)) return;
         v = Math.max(0f, Math.min(2f, v));
         runtime.globalVolume = v;
         messenger.requestBroadcastSync();
@@ -477,6 +604,7 @@ public final class ScreenActions {
     }
 
     public void resetGlobalVolume(Player p) {
+        if (!requireAdmin(p)) return;
         runtime.globalVolume = 1.0f;
         messenger.requestBroadcastSync();
         lang.send(p, "cmd.global_volume.reset");
@@ -484,6 +612,7 @@ public final class ScreenActions {
     }
 
     public void setHearRadius(Player p, int r) {
+        if (!requireAdmin(p)) return;
         r = Math.max(1, Math.min(512, r));
         runtime.hearRadius = r;
         messenger.requestBroadcastSync();
@@ -492,6 +621,7 @@ public final class ScreenActions {
     }
 
     public void resetHearRadius(Player p) {
+        if (!requireAdmin(p)) return;
         runtime.hearRadius = 100;
         messenger.requestBroadcastSync();
         lang.send(p, "cmd.hear_radius.reset");
@@ -501,6 +631,7 @@ public final class ScreenActions {
     // ==================== Playlist ====================
 
     public boolean playlistAdd(Player p, String screenName, String url) {
+        if (requireOwnScreen(p, screenName) == null) return false;
         String safeUrl = validateAndNormalizeUrl(url);
         if (safeUrl == null) {
             lang.send(p, "error.invalid_url");
@@ -519,6 +650,7 @@ public final class ScreenActions {
     }
 
     public boolean playlistRemove(Player p, String screenName, int index) {
+        if (requireOwnScreen(p, screenName) == null) return false;
         Playlist playlist = requirePlaylist(p, screenName);
         if (playlist == null) return false;
 
@@ -534,7 +666,7 @@ public final class ScreenActions {
 
     /** Play entry {@code index} (1-based), or the current entry when {@code index} is null. */
     public boolean playlistPlay(Player p, String screenName, Integer index) {
-        Screen screen = requireScreen(p, screenName);
+        Screen screen = requireOwnScreen(p, screenName);
         if (screen == null) return false;
         Playlist playlist = requirePlaylist(p, screenName);
         if (playlist == null) return false;
@@ -558,7 +690,7 @@ public final class ScreenActions {
     }
 
     public boolean playlistNext(Player p, String screenName) {
-        Screen screen = requireScreen(p, screenName);
+        Screen screen = requireOwnScreen(p, screenName);
         if (screen == null) return false;
         Playlist playlist = requirePlaylist(p, screenName);
         if (playlist == null) return false;
@@ -577,7 +709,7 @@ public final class ScreenActions {
     }
 
     public boolean playlistPrev(Player p, String screenName) {
-        Screen screen = requireScreen(p, screenName);
+        Screen screen = requireOwnScreen(p, screenName);
         if (screen == null) return false;
         Playlist playlist = requirePlaylist(p, screenName);
         if (playlist == null) return false;
@@ -593,6 +725,7 @@ public final class ScreenActions {
     }
 
     public void playlistClear(Player p, String screenName) {
+        if (requireOwnScreen(p, screenName) == null) return;
         Playlist playlist = Playlist.get(screenName);
         if (playlist != null) {
             playlist.clear();
@@ -604,6 +737,7 @@ public final class ScreenActions {
     }
 
     public void playlistSetLoop(Player p, String screenName, boolean loopOn) {
+        if (requireOwnScreen(p, screenName) == null) return;
         Playlist playlist = Playlist.getOrCreate(screenName);
         playlist.setLoop(loopOn);
         lang.send(p, loopOn ? "playlist.loop.on" : "playlist.loop.off");
@@ -611,6 +745,7 @@ public final class ScreenActions {
     }
 
     public void playlistSetEnabled(Player p, String screenName, boolean enabled) {
+        if (requireOwnScreen(p, screenName) == null) return;
         Playlist playlist = Playlist.getOrCreate(screenName);
         playlist.setEnabled(enabled);
         lang.send(p, enabled ? "playlist.enabled" : "playlist.disabled");
