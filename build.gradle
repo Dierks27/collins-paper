@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "org.sawiq"
-version = "1.6.0"
+version = "1.7.0"
 
 repositories {
     mavenCentral()
@@ -15,6 +15,14 @@ dependencies {
     // Paper 26.3 API, pinned to a verified-good build for reproducibility.
     // Bump it deliberately when a newer build is wanted.
     compileOnly "io.papermc.paper:paper-api:26.3.build.230-stable"
+
+    testImplementation platform("org.junit:junit-bom:5.13.4")
+    testImplementation "org.junit.jupiter:junit-jupiter"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+test {
+    useJUnitPlatform()
 }
 
 tasks {

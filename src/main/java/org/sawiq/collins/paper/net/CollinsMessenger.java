@@ -6,6 +6,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.sawiq.collins.paper.model.Screen;
 import org.sawiq.collins.paper.state.CollinsRuntimeState;
 import org.sawiq.collins.paper.store.ScreenStore;
+import org.sawiq.collins.paper.util.UrlPolicy;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
@@ -20,16 +21,18 @@ public final class CollinsMessenger {
     private final CollinsRuntimeState runtime;
     private final Set<UUID> moddedPlayers;
     private final Set<UUID> outdatedModdedPlayers;
+    private final UrlPolicy urlPolicy;
 
     private volatile boolean broadcastScheduled;
 
     public CollinsMessenger(JavaPlugin plugin, ScreenStore store, CollinsRuntimeState runtime,
-                            Set<UUID> moddedPlayers, Set<UUID> outdatedModdedPlayers) {
+                            Set<UUID> moddedPlayers, Set<UUID> outdatedModdedPlayers, UrlPolicy urlPolicy) {
         this.plugin = plugin;
         this.store = store;
         this.runtime = runtime;
         this.moddedPlayers = moddedPlayers;
         this.outdatedModdedPlayers = outdatedModdedPlayers;
+        this.urlPolicy = urlPolicy;
     }
 
     public void sendSync(Player player) {
@@ -138,8 +141,11 @@ public final class CollinsMessenger {
 
             out.writeByte(s.axis());
 
-            out.writeUTF(s.mp4Url() == null ? "" : s.mp4Url());
-            out.writeBoolean(s.playing());
+            // Last line of defence: an address that may not play is never
+            // handed to a client, whatever the store says.
+            boolean sendable = urlPolicy.mayPlay(s.mp4Url());
+            out.writeUTF(s.mp4Url() == null || !sendable ? "" : s.mp4Url());
+            out.writeBoolean(s.playing() && sendable);
             out.writeBoolean(s.loop());
             out.writeFloat(s.volume());
             out.writeInt(s.youtubeQuality());

@@ -13,6 +13,7 @@ import org.sawiq.collins.paper.store.PlaylistStore;
 import org.sawiq.collins.paper.store.ScreenStore;
 import org.sawiq.collins.paper.util.Lang;
 import org.sawiq.collins.paper.util.ScreenFactory;
+import org.sawiq.collins.paper.util.UrlPolicy;
 import org.sawiq.collins.paper.util.YouTubeQuality;
 
 import java.net.InetAddress;
@@ -49,6 +50,7 @@ public final class ScreenActions {
     private final SelectionService selection;
     private final CollinsRuntimeState runtime;
     private final Lang lang;
+    private final UrlPolicy urlPolicy;
 
     private final Map<UUID, Long> lastActionAtMs = new ConcurrentHashMap<>();
 
@@ -58,7 +60,8 @@ public final class ScreenActions {
                          CollinsMessenger messenger,
                          SelectionService selection,
                          CollinsRuntimeState runtime,
-                         Lang lang) {
+                         Lang lang,
+                         UrlPolicy urlPolicy) {
         this.plugin = plugin;
         this.store = store;
         this.playlistStore = playlistStore;
@@ -66,6 +69,7 @@ public final class ScreenActions {
         this.selection = selection;
         this.runtime = runtime;
         this.lang = lang;
+        this.urlPolicy = urlPolicy;
     }
 
     // ==================== Rate limit ====================
@@ -215,6 +219,7 @@ public final class ScreenActions {
             plugin.getLogger().info(p.getName() + " rejected URL for screen '" + name + "'");
             return false;
         }
+        if (!urlPermitted(p, safeUrl)) return false;
 
         Screen s = requireScreen(p, name);
         if (s == null) return false;
@@ -275,6 +280,9 @@ public final class ScreenActions {
             lang.send(p, preflight, lang.vars("name", name, "url", s.mp4Url() == null ? "" : s.mp4Url()));
             return false;
         }
+        // An address stored before the allow-list existed, or by someone
+        // who has since lost the bypass, does not start for a regular player.
+        if (!urlPermitted(p, s.mp4Url())) return false;
 
         SelectionVisualizer.stop(p);
         plugin.startPlaybackAfterProbe(p, s, fromZero);
@@ -378,8 +386,8 @@ public final class ScreenActions {
                 if (nextEntry != null) {
                     // Переключаем на следующее видео
                     plugin.getLogger().info("Seek past end, playlist advance for '" + s.name() + "' -> [" + nextEntry.index() + "] " + nextEntry.title());
-                    playVideoFromPlaylist(p, s, nextEntry);
                     playlistStore.save();
+                    if (!playVideoFromPlaylist(p, s, nextEntry)) return false;
                     lang.send(p, "cmd.seeked_playlist_next", lang.vars(
                             "name", s.name(),
                             "index", nextEntry.index(),
@@ -498,6 +506,7 @@ public final class ScreenActions {
             lang.send(p, "error.invalid_url");
             return false;
         }
+        if (!urlPermitted(p, safeUrl)) return false;
 
         Playlist playlist = Playlist.getOrCreate(screenName);
         int index = playlist.add(safeUrl);
@@ -544,9 +553,8 @@ public final class ScreenActions {
             }
         }
 
-        playVideoFromPlaylist(p, screen, entry);
         playlistStore.save();
-        return true;
+        return playVideoFromPlaylist(p, screen, entry);
     }
 
     public boolean playlistNext(Player p, String screenName) {
@@ -564,9 +572,8 @@ public final class ScreenActions {
             return false;
         }
 
-        playVideoFromPlaylist(p, screen, entry);
         playlistStore.save();
-        return true;
+        return playVideoFromPlaylist(p, screen, entry);
     }
 
     public boolean playlistPrev(Player p, String screenName) {
@@ -581,9 +588,8 @@ public final class ScreenActions {
             return false;
         }
 
-        playVideoFromPlaylist(p, screen, entry);
         playlistStore.save();
-        return true;
+        return playVideoFromPlaylist(p, screen, entry);
     }
 
     public void playlistClear(Player p, String screenName) {
@@ -621,8 +627,9 @@ public final class ScreenActions {
         return playlist;
     }
 
-    private void playVideoFromPlaylist(Player p, Screen screen, Playlist.PlaylistEntry entry) {
+    private boolean playVideoFromPlaylist(Player p, Screen screen, Playlist.PlaylistEntry entry) {
         String url = entry.url();
+        if (!urlPermitted(p, url)) return false;
 
         // The screen's loop flag is kept: checkVideoEndings() tries the
         // playlist first, so a single entry never replays while the playlist
@@ -653,6 +660,28 @@ public final class ScreenActions {
 
         lang.send(p, "playlist.playing", lang.vars("current", current, "total", total, "title", entry.title()));
         plugin.getLogger().info(p.getName() + " playlist play '" + screen.name() + "' [" + entry.index() + "] " + url);
+        return true;
+    }
+
+    // ==================== Allowed sites ====================
+
+    /**
+     * The gate every address passes on its way to a screen. A listed host
+     * (or an address already approved) is fine for anyone. Anything else
+     * needs {@link UrlPolicy#BYPASS_PERMISSION}; a holder putting it on a
+     * screen approves that address, so regular players can then play, pause
+     * and resume it. Otherwise the player is told and nothing changes.
+     */
+    private boolean urlPermitted(Player p, String url) {
+        if (urlPolicy.mayPlay(url)) return true;
+        if (p.hasPermission(UrlPolicy.BYPASS_PERMISSION)) {
+            urlPolicy.approve(url);
+            plugin.saveApprovedUrls();
+            return true;
+        }
+        lang.send(p, "error.url_not_allowed");
+        plugin.getLogger().info(p.getName() + " was refused an address outside security.allowedHosts: " + url);
+        return false;
     }
 
     // ==================== Helpers ====================

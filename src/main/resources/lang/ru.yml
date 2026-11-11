@@ -9,6 +9,7 @@ error.selection_world_mismatch: "{prefix} &cpos1/pos2 должны быть в �
 error.selection_invalid: "{prefix} &cВыделение должно быть плоскостью (XY/XZ/YZ) толщиной 1 блок и размером минимум 2x2."
 error.bad_number: "{prefix} &cНеверное число."
 error.invalid_screen_name: "{prefix} &cНеверное имя экрана: &f{name}"
+error.url_not_allowed: "{prefix} &cЗдесь можно включать только ссылки YouTube и Twitch."
 error.invalid_url: "{prefix} &cНеверный или запрещённый URL."
 error.no_url: "{prefix} &cУ экрана ещё не задан URL. Сначала используй &f/collins seturl {name} <url>&c."
 error.bad_url: "{prefix} &cСхема URL не воспроизводима. Используй http(s)/rtmp(s)/rtsp."
