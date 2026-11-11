@@ -62,8 +62,8 @@ crafted, and the recipe shows up in the recipe book (turn that off with
   I  R  I      R = redstone dust
   .  I  .      I = iron ingot
 ```
- Using it needs
-`collins.admin`, like the commands. Everything it does goes through the same
+
+Using it needs `collins.admin`, like the commands. Everything it does goes through the same
 code as the commands, and it needs nothing on the client beyond the mod.
 
 - **Right-click while looking at a screen** (up to 200 blocks away): that
