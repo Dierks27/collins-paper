@@ -18,3 +18,8 @@ permissions:
     # Every player, not only ops. A permissions plugin can still take it away
     # from a player or group (e.g. LuckPerms: permission set collins.admin false).
     default: true
+  collins.remote.craft:
+    description: Craft the TV Remote (using it still needs collins.admin)
+    # Ops only until it is handed out, e.g. LuckPerms:
+    # lp group default permission set collins.remote.craft true
+    default: op

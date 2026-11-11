@@ -58,6 +58,7 @@ public final class RemoteController implements Listener {
     private static final long PROMPT_TIMEOUT_TICKS = 60L * 20L;
     private static final long SELECTING_TIMEOUT_MS = 5L * 60L * 1000L;
     private static final long DEBOUNCE_MS = 150L;
+    private static final String CRAFT_PERMISSION = "collins.remote.craft";
 
     /** A question the player answers with their next chat message. */
     private record Prompt(BiConsumer<Player, String> onAnswer, Runnable onAbort) {}
@@ -93,11 +94,11 @@ public final class RemoteController implements Listener {
 
     // ==================== Crafting the remote ====================
 
-    /** The remote is only craftable by players who may use it. */
+    /** Crafting has its own permission, separate from using the remote (collins.admin). */
     @EventHandler
     public void onPrepareCraft(PrepareItemCraftEvent e) {
         if (!(e.getRecipe() instanceof Keyed keyed) || !keyed.getKey().equals(item.key())) return;
-        if (e.getViewers().stream().noneMatch(v -> v.hasPermission("collins.admin"))) {
+        if (e.getViewers().stream().noneMatch(v -> v.hasPermission(CRAFT_PERMISSION))) {
             e.getInventory().setResult(null);
         }
     }
@@ -106,7 +107,7 @@ public final class RemoteController implements Listener {
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
         Player p = e.getPlayer();
-        if (p.hasPermission("collins.admin") && Bukkit.getRecipe(item.key()) != null) {
+        if (p.hasPermission(CRAFT_PERMISSION) && Bukkit.getRecipe(item.key()) != null) {
             p.discoverRecipe(item.key());
         }
     }

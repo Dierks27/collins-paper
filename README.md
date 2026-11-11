@@ -54,8 +54,11 @@ someone, deny it with a permissions plugin, e.g. LuckPerms:
 
 `/collins remote` gives you a TV Remote (`/collins remote <player>` gives one
 to someone else), so nobody has to type the commands above. It can also be
-crafted, and the recipe shows up in the recipe book (turn that off with
-`remote.craftable: false` in `config.yml`):
+crafted by anyone with the permission `collins.remote.craft`, who also get
+the recipe in their recipe book on joining. Only ops have that permission by
+default; hand it out with a permissions plugin, e.g. LuckPerms:
+`lp group default permission set collins.remote.craft true`. To drop the
+recipe altogether, set `remote.craftable: false` in `config.yml`.
 
 ```
   .  G  .      G = glass pane
