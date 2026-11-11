@@ -65,6 +65,13 @@ public final class Lang {
                 if (!fileCfg.contains(key)) {
                     fileCfg.set(key, defaults.get(key));
                     changed = true;
+                } else if (defaults.isString(key) && fileCfg.isConfigurationSection(key)) {
+                    // A message that an older file turned into a section by
+                    // also having a "<key>.something" entry (playlist.empty
+                    // next to playlist.empty.hint), which made it print as
+                    // its own key. Put the text back.
+                    fileCfg.set(key, defaults.get(key));
+                    changed = true;
                 }
             }
 
@@ -81,6 +88,14 @@ public final class Lang {
             String fs = fileCfg.getString("cmd.seeked");
             if (ds != null && fs != null && fs.contains("{pos}") && ds.contains("{from}") && ds.contains("{to}")) {
                 fileCfg.set("cmd.seeked", ds);
+                changed = true;
+            }
+
+            // Help written before /collins remote existed: show the new command.
+            String dh = defaults.getString("cmd.help");
+            String fh = fileCfg.getString("cmd.help");
+            if (dh != null && fh != null && dh.contains("/collins remote") && !fh.contains("/collins remote")) {
+                fileCfg.set("cmd.help", dh);
                 changed = true;
             }
 
@@ -119,6 +134,11 @@ public final class Lang {
         // Пробуем получить как есть
         String s = messages.getString(key);
         return s;
+    }
+
+    /** Whether the language file defines {@code key}. */
+    public boolean has(String key) {
+        return getString(key) != null;
     }
 
     public String tr(String key) {

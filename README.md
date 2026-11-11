@@ -22,8 +22,9 @@ the foojay resolver when it is missing. Gradle 8.14 itself must run on JDK
 ```
 
 The plugin jar is written to `build/libs/collins-paper-<version>-mc26.3.jar`.
-GitHub Actions builds every push and attaches the jar to a Release on a `v*`
-tag.
+GitHub Actions builds every push. A push to `main` that carries a new
+`version` (in `build.gradle`) publishes the jar as Release
+`v<version>-mc26.3`; pushing a `v*` tag does the same.
 
 ## Install
 
@@ -47,9 +48,50 @@ someone, deny it with a permissions plugin, e.g. LuckPerms:
 - `/collins volume set <0..2>|reset`, `/collins radius set <1..512>|reset`.
 - `/collins playlist <screen> add <url>|remove <index>|play [index]|next|prev|list|clear|loop on|off|enable|disable`.
 - `/collins list`, `/collins remove <screen>`.
+- `/collins remote [player]` - hand out a TV Remote (see below).
+
+## TV Remote
+
+`/collins remote` gives you a TV Remote (`/collins remote <player>` gives one
+to someone else), so nobody has to type the commands above. It can also be
+crafted by anyone with the permission `collins.remote.craft`, who also get
+the recipe in their recipe book on joining. Every player has that permission
+by default; take it away with a permissions plugin, e.g. LuckPerms:
+`lp group default permission set collins.remote.craft false`. To drop the
+recipe altogether, set `remote.craftable: false` in `config.yml`.
+
+```
+  .  G  .      G = glass pane
+  I  R  I      R = redstone dust
+  .  I  .      I = iron ingot
+```
+
+Using it needs `collins.admin`, like the commands. Everything it does goes through the same
+code as the commands, and it needs nothing on the client beyond the mod.
+
+- **Right-click while looking at a screen** (up to 200 blocks away): that
+  screen's menu. Play / Pause / Resume / Stop, back and forward 30 seconds,
+  loop, YouTube quality, Set URL, the playlist, and Remove screen (click
+  twice).
+- **Right-click anywhere else**: the list of all screens, with a New screen
+  button and the server-wide global volume and hear radius.
+- **Set URL** and the playlist's **Add a video** close the menu and take your
+  next chat message as the URL. The message is not shown to anyone. Type
+  `cancel` to back out; it also gives up after 60 seconds. Set URL starts
+  playing straight away.
+- **New screen**: left-click one corner block with the remote, right-click the
+  opposite corner, then type the screen's name in chat. Sneak-click cancels.
+- **Playlist**: click a video to play it, shift-click to remove it. The shears
+  button switches to "remove mode", where a plain click removes, for clients
+  that cannot shift-click.
+
+While you hold the remote it does nothing else: it does not break, place,
+hit or open anything. The item is `BLAZE_ROD` by default (`remote.material` in
+`config.yml`); only a hidden tag makes it a remote, so renaming it is harmless.
 
 ## Differences from upstream
 
+- The TV Remote item and its menus (`/collins remote`).
 - Ported to Paper 26.3 (paper-api 26.3.build.230-stable, Java 25).
 - The Modrinth update checker is off by default (`updates.check_modrinth` in
   `config.yml`); this fork is private and never published there.
