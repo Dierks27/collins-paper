@@ -20,6 +20,6 @@ permissions:
     default: true
   collins.remote.craft:
     description: Craft the TV Remote (using it still needs collins.admin)
-    # Ops only until it is handed out, e.g. LuckPerms:
-    # lp group default permission set collins.remote.craft true
-    default: op
+    # Every player, like collins.admin. To take it away from a player or
+    # group, e.g. LuckPerms: permission set collins.remote.craft false
+    default: true

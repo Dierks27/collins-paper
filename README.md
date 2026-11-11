@@ -55,9 +55,9 @@ someone, deny it with a permissions plugin, e.g. LuckPerms:
 `/collins remote` gives you a TV Remote (`/collins remote <player>` gives one
 to someone else), so nobody has to type the commands above. It can also be
 crafted by anyone with the permission `collins.remote.craft`, who also get
-the recipe in their recipe book on joining. Only ops have that permission by
-default; hand it out with a permissions plugin, e.g. LuckPerms:
-`lp group default permission set collins.remote.craft true`. To drop the
+the recipe in their recipe book on joining. Every player has that permission
+by default; take it away with a permissions plugin, e.g. LuckPerms:
+`lp group default permission set collins.remote.craft false`. To drop the
 recipe altogether, set `remote.craftable: false` in `config.yml`.
 
 ```
