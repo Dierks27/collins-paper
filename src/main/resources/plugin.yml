@@ -1,5 +1,5 @@
 name: collins-paper
-version: 1.6.0
+version: 1.7.0
 main: org.sawiq.collins.paper.CollinsPaperPlugin
 api-version: "1.21"
 folia-supported: true
@@ -18,6 +18,11 @@ permissions:
     # Every player, not only ops. A permissions plugin can still take it away
     # from a player or group (e.g. LuckPerms: permission set collins.admin false).
     default: true
+  collins.url.any:
+    description: Put any address on a screen, not only the hosts in security.allowedHosts
+    # Ops only. For an admin group, e.g. LuckPerms:
+    # lp group admin permission set collins.url.any true
+    default: op
   collins.remote.craft:
     description: Craft the TV Remote (using it still needs collins.admin)
     # Every player, like collins.admin. To take it away from a player or

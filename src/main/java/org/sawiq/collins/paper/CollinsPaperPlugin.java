@@ -23,6 +23,7 @@ import org.sawiq.collins.paper.update.ModrinthVersionChecker;
 import org.sawiq.collins.paper.util.FFprobeUtil;
 import org.sawiq.collins.paper.util.Lang;
 import org.sawiq.collins.paper.util.ToolsDownloader;
+import org.sawiq.collins.paper.util.UrlPolicy;
 import org.sawiq.collins.paper.util.YouTubeQuality;
 
 import java.util.Set;
@@ -39,6 +40,7 @@ public final class CollinsPaperPlugin extends JavaPlugin implements Listener {
     private SelectionService selection;
     private CollinsRuntimeState runtime;
     private Lang lang;
+    private UrlPolicy urlPolicy;
     private ScreenActions screenActions;
     private RemoteController remoteController;
     private RemoteItem remoteItem;
@@ -72,6 +74,7 @@ public final class CollinsPaperPlugin extends JavaPlugin implements Listener {
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        backfillConfig();
         String language = getConfig().getString("language", "en");
         lang = new Lang(this, language);
 
@@ -81,13 +84,19 @@ public final class CollinsPaperPlugin extends JavaPlugin implements Listener {
         playlistStore = new PlaylistStore(this);
         playlistStore.load();
 
+        urlPolicy = new UrlPolicy(
+                getConfig().getBoolean("security.restrictHosts", true),
+                getConfig().getStringList("security.allowedHosts"));
+        loadApprovedUrls();
+        stopScreensWithDisallowedUrls();
+
         runtime = new CollinsRuntimeState();
         selection = new SelectionService();
 
-        messenger = new CollinsMessenger(this, store, runtime, moddedPlayers, outdatedModdedPlayers);
+        messenger = new CollinsMessenger(this, store, runtime, moddedPlayers, outdatedModdedPlayers, urlPolicy);
 
         // One set of screen actions, two ways in: /collins and the TV Remote.
-        screenActions = new ScreenActions(this, store, playlistStore, messenger, selection, runtime, lang);
+        screenActions = new ScreenActions(this, store, playlistStore, messenger, selection, runtime, lang, urlPolicy);
         remoteItem = new RemoteItem(this, lang);
         remoteController = new RemoteController(this, store, runtime, screenActions, selection, remoteItem, lang);
         Bukkit.getPluginManager().registerEvents(remoteController, this);
@@ -759,11 +768,13 @@ public final class CollinsPaperPlugin extends JavaPlugin implements Listener {
             return false;
         }
 
-        Playlist.PlaylistEntry nextEntry = playlist.next();
-        if (nextEntry == null && screen.loop()) {
-            // End of the playlist with the screen's loop flag on: start the
-            // whole playlist over instead of replaying the last video.
-            nextEntry = playlist.jumpTo(1);
+        Playlist.PlaylistEntry nextEntry = nextPlaylistEntry(playlist, screen);
+        // Nobody is at the controls here, so an entry that may not play
+        // (stored before the allow-list existed) is skipped, not started.
+        for (int skipped = 0; nextEntry != null && !urlPolicy.mayPlay(nextEntry.url()); skipped++) {
+            getLogger().info("Playlist of '" + screen.name() + "': skipping [" + nextEntry.index()
+                    + "], its address is outside security.allowedHosts: " + nextEntry.url());
+            nextEntry = skipped < playlist.size() ? nextPlaylistEntry(playlist, screen) : null;
         }
         if (nextEntry == null) {
             return false;
@@ -787,6 +798,118 @@ public final class CollinsPaperPlugin extends JavaPlugin implements Listener {
         store.put(updated);
         prefetchDuration(updated);
         return true;
+    }
+
+    private static Playlist.PlaylistEntry nextPlaylistEntry(Playlist playlist, Screen screen) {
+        Playlist.PlaylistEntry next = playlist.next();
+        if (next == null && screen.loop()) {
+            // End of the playlist with the screen's loop flag on: start the
+            // whole playlist over instead of replaying the last video.
+            next = playlist.jumpTo(1);
+        }
+        return next;
+    }
+
+    // ==================== Allowed sites ====================
+
+    /**
+     * Adds config keys introduced after a server's config.yml was written,
+     * so the owner finds them in the file instead of only in the README.
+     */
+    private void backfillConfig() {
+        var cfg = getConfig();
+        boolean changed = false;
+        if (!cfg.isSet("security.restrictHosts")) {
+            cfg.set("security.restrictHosts", true);
+            cfg.setComments("security.restrictHosts", java.util.List.of(
+                    "Only let players without the permission collins.url.any put the hosts below on a screen.",
+                    "false = any public address, as before 1.7.0."));
+            changed = true;
+        }
+        if (!cfg.isSet("security.allowedHosts")) {
+            cfg.set("security.allowedHosts", cfg.getDefaults() == null
+                    ? java.util.List.of()
+                    : cfg.getDefaults().getStringList("security.allowedHosts"));
+            cfg.setComments("security.allowedHosts", java.util.List.of(
+                    "Hosts regular players may play. A listed host also covers its subdomains."));
+            changed = true;
+        }
+        if (changed) {
+            saveConfig();
+            getLogger().info("config.yml: added security.restrictHosts and security.allowedHosts (new in 1.7.0).");
+        }
+    }
+
+    private java.io.File approvedUrlsFile() {
+        return new java.io.File(getDataFolder(), "approved-urls.yml");
+    }
+
+    private void loadApprovedUrls() {
+        java.io.File file = approvedUrlsFile();
+        if (!file.exists()) return;
+        var cfg = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file);
+        for (String url : cfg.getStringList("approved")) urlPolicy.approve(url);
+    }
+
+    /**
+     * Writes the addresses that holders of collins.url.any have put on
+     * screens. Approvals for addresses nothing uses any more are dropped at
+     * the next startup, so the file cannot grow without bound.
+     */
+    public synchronized void saveApprovedUrls() {
+        var cfg = new org.bukkit.configuration.file.YamlConfiguration();
+        cfg.set("approved", new java.util.ArrayList<>(new java.util.TreeSet<>(urlPolicy.approvedUrls())));
+        try {
+            cfg.save(approvedUrlsFile());
+        } catch (java.io.IOException e) {
+            getLogger().warning("Failed to save approved-urls.yml: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Run once at startup: screens and playlist entries saved before the
+     * allow-list existed may hold addresses a regular player could no
+     * longer set. Those do not play until someone with collins.url.any sets
+     * or starts them again. Says so in the console, once per screen.
+     */
+    private void stopScreensWithDisallowedUrls() {
+        if (!urlPolicy.restricted()) return;
+
+        // Forget approvals for addresses nothing uses any more.
+        Set<String> inUse = new java.util.HashSet<>();
+        for (Screen s : store.all()) {
+            if (s.mp4Url() != null) inUse.add(s.mp4Url().trim());
+        }
+        for (String name : Playlist.getScreenNames()) {
+            Playlist playlist = Playlist.get(name);
+            if (playlist == null) continue;
+            for (Playlist.PlaylistEntry e : playlist.getEntries()) inUse.add(e.url().trim());
+        }
+        urlPolicy.approvedUrls().retainAll(inUse);
+
+        boolean stopped = false;
+        for (Screen s : store.all()) {
+            if (urlPolicy.mayPlay(s.mp4Url())) continue;
+            getLogger().warning("Screen '" + s.name() + "' holds an address outside security.allowedHosts ("
+                    + s.mp4Url() + "). It will not play until a player with " + UrlPolicy.BYPASS_PERMISSION
+                    + " sets or starts it again.");
+            if (s.playing()) {
+                store.put(s.withPlaying(false));
+                stopped = true;
+            }
+        }
+        if (stopped) store.save();
+
+        for (String name : Playlist.getScreenNames()) {
+            Playlist playlist = Playlist.get(name);
+            if (playlist == null) continue;
+            long blocked = playlist.getEntries().stream().filter(e -> !urlPolicy.mayPlay(e.url())).count();
+            if (blocked > 0) {
+                getLogger().warning("Playlist of '" + name + "' has " + blocked
+                        + " entries outside security.allowedHosts; they are skipped until a player with "
+                        + UrlPolicy.BYPASS_PERMISSION + " plays them.");
+            }
+        }
     }
 
     public Lang lang() {

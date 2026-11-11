@@ -50,6 +50,33 @@ someone, deny it with a permissions plugin, e.g. LuckPerms:
 - `/collins list`, `/collins remove <screen>`.
 - `/collins remote [player]` - hand out a TV Remote (see below).
 
+## Which sites can be played
+
+Every nearby player's game downloads the video itself, straight from the
+address on the screen. So regular players can only use **YouTube and Twitch**
+links; anything else is refused with "Only YouTube and Twitch links can be
+played here." and nothing changes. This applies to `/collins seturl`,
+`/collins playlist ... add` and the TV Remote alike.
+
+- **Admins**: the permission `collins.url.any` (ops by default) lets its
+  holder use any public http(s) address. For a non-op admin group, e.g.
+  LuckPerms: `lp group admin permission set collins.url.any true`.
+- An address an admin has put on a screen is approved: regular players can
+  then play, pause and resume it (and reuse that exact address), but cannot
+  set a different one.
+- `security.allowedHosts` in `config.yml` is the list (YouTube and Twitch as
+  shipped). A listed host covers its subdomains and nothing else:
+  `youtube.com.evil.example` and `evil.example/?youtube.com` do not match.
+- `security.restrictHosts: false` turns the limit off (any public address for
+  everyone, as before 1.7.0). Both keys are added to an existing `config.yml`
+  on first start.
+- Addresses saved before 1.7.0 that are not on the list stop playing at
+  startup (the console names each screen) until someone with
+  `collins.url.any` sets or starts them again. They are never sent to
+  players' games in the meantime.
+- The check is on the address as typed. Where a listed site itself redirects
+  is trusted.
+
 ## TV Remote
 
 `/collins remote` gives you a TV Remote (`/collins remote <player>` gives one
@@ -91,6 +118,8 @@ hit or open anything. The item is `BLAZE_ROD` by default (`remote.material` in
 
 ## Differences from upstream
 
+- Regular players can only play YouTube and Twitch (`security.allowedHosts`,
+  permission `collins.url.any` for everything else).
 - The TV Remote item and its menus (`/collins remote`).
 - Ported to Paper 26.3 (paper-api 26.3.build.230-stable, Java 25).
 - The Modrinth update checker is off by default (`updates.check_modrinth` in
