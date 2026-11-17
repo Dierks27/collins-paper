@@ -245,6 +245,15 @@ public final class CollinsCommand implements TabExecutor {
                 return true;
             }
 
+            case "panel" -> {
+                if (args.length < 2 || !args[1].equalsIgnoreCase("refresh")) {
+                    usage(p, "/collins panel refresh [screen]");
+                    return true;
+                }
+                actions.refreshPanels(p, args.length >= 3 ? args[2] : null);
+                return true;
+            }
+
             case "remote" -> {
                 Player target = p;
                 if (args.length >= 2) {
@@ -295,7 +304,7 @@ public final class CollinsCommand implements TabExecutor {
                     "loop", "quality",
                     "seek", "back",
                     "volume", "radius",
-                    "remove", "list", "playlist", "owner", "remote"
+                    "remove", "list", "playlist", "owner", "panel", "remote"
             ));
         }
 
@@ -320,6 +329,16 @@ public final class CollinsCommand implements TabExecutor {
             List<String> names = new ArrayList<>();
             for (Player online : Bukkit.getOnlinePlayers()) names.add(online.getName());
             return startsWith(args[1], names);
+        }
+
+        if (args.length == 2 && args[0].equalsIgnoreCase("panel")) {
+            return startsWith(args[1], List.of("refresh"));
+        }
+
+        if (args.length == 3 && args[0].equalsIgnoreCase("panel")) {
+            List<String> names = new ArrayList<>();
+            for (Screen s : store.all()) names.add(s.name());
+            return startsWith(args[2], names);
         }
 
         if (args.length == 3 && args[0].equalsIgnoreCase("owner")) {
