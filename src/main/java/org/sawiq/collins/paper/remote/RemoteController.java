@@ -110,8 +110,9 @@ public final class RemoteController implements Listener {
         if (p.hasPermission(CRAFT_PERMISSION) && Bukkit.getRecipe(item.key()) != null) {
             p.discoverRecipe(item.key());
         }
-        // Remotes made before remote.item_model existed (or before it was
-        // changed) get the current model. Only the model is touched.
+        // Remotes made before remote.item_model / remote.glint existed (or
+        // before they were changed) get the current look. Only the model and
+        // the glint are touched.
         var inv = p.getInventory();
         for (int i = 0; i < inv.getSize(); i++) {
             var stack = inv.getItem(i);

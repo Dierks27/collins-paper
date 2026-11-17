@@ -31,14 +31,15 @@ updates:
 #     Blockbench model, shipped as plugins/CraftBridge/pack/sources/collins.zip).
 #     Blank = the plain material. Existing remotes pick it up when their
 #     holder joins or uses them.
-#     glint: the enchantment shimmer on newly made remotes.
+#     glint: the enchantment shimmer on the remote (off as shipped). Existing
+#     remotes follow the setting when their holder joins or uses them.
 # RU: item_model: модель пульта из ресурспака сервера. Пусто = обычный предмет.
-#     glint: блеск зачарования на новых пультах.
+#     glint: блеск зачарования на пульте (по умолчанию выключен).
 remote:
   material: BLAZE_ROD
   craftable: true
   item_model: "collins:tv_remote"
-  glint: true
+  glint: false
 
 # EN: Screens belong to the player who made them (since 1.8.0). Players with
 #     collins.use manage their own; collins.admin manages everyone's.

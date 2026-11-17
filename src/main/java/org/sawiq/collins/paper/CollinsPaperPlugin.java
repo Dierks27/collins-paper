@@ -876,8 +876,9 @@ public final class CollinsPaperPlugin extends JavaPlugin implements Listener {
             changed = true;
         }
         if (!cfg.isSet("remote.glint")) {
-            cfg.set("remote.glint", true);
-            cfg.setComments("remote.glint", java.util.List.of("Enchantment shimmer on newly made remotes."));
+            cfg.set("remote.glint", false);
+            cfg.setComments("remote.glint", java.util.List.of(
+                    "Enchantment shimmer on the TV Remote (existing remotes follow on join or use)."));
             changed = true;
         }
         if (changed) {
