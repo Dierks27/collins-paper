@@ -72,7 +72,31 @@ For an admin group that is not op, e.g. LuckPerms:
 - `/collins playlist <screen> add <url>|remove <index>|play [index]|next|prev|list|clear|loop on|off|enable|disable`.
 - `/collins list`, `/collins remove <screen>`.
 - `/collins owner <screen> [player|none]` - show the owner; admins can change it.
+- `/collins panel refresh [screen]` - admins: re-read `screens.panel` from `config.yml` and rebuild the panels of one screen or all (see below).
 - `/collins remote [player]` - hand out a TV Remote (see below).
+
+## Screen panel
+
+Every screen shows as a switched-off TV: a thin panel (black concrete as
+shipped) lies over both faces of the screen's blocks. It is an ordinary
+display entity, so **everyone sees it, including players without the client
+mod**. With the mod, the video is drawn on top of it.
+
+- The client mod draws the video 0.01 blocks out from the screen's blocks,
+  on the side the viewer is on, so there is a panel on both faces and it sits
+  closer than that: keep `offset + depth` below 0.01, or the panel covers the
+  video (the console warns).
+- `screens.panel` in `config.yml`: `enabled`, `block` (`BLACK_CONCRETE`,
+  `WHITE_CONCRETE`, `WHITE_CARPET`, ...; a carpet is drawn as its wool, which
+  has the same texture), `depth`, `offset`, `brightness` (-1 = the light of the
+  world, 0..15 = always that bright). After a change, `/collins panel refresh`
+  applies it without a restart.
+- Panels are never saved with the world. They are spawned when a screen is
+  created and when its chunk loads, and removed with the screen, so there is
+  always exactly one per face. Screens made before 1.9.0 get theirs on the
+  first start.
+- A panel has no hitbox: it does not stop you hitting or placing blocks, and
+  the TV Remote still finds the screen behind it.
 
 ## Which sites can be played
 
@@ -141,11 +165,21 @@ While you hold the remote it does nothing else: it does not break, place,
 hit or open anything. The item is `BLAZE_ROD` by default (`remote.material` in
 `config.yml`); only a hidden tag makes it a remote, so renaming it is harmless.
 
+**Look**: `remote.item_model` (default `collins:tv_remote`) gives the remote
+its 3D model from the server resource pack. The model is not inside the
+plugin: it is the CraftBridge pack source
+`plugins/CraftBridge/pack/sources/collins.zip`, so it can be changed in
+Blockbench without a plugin release. Blank = the plain item. Remotes made
+earlier pick up the model when their holder joins or uses them (only the
+model changes). `remote.glint` (default `true`) puts the enchantment shimmer
+on newly made remotes.
+
 ## Differences from upstream
 
 - Regular players can only play YouTube and Twitch (`security.allowedHosts`,
   permission `collins.url.any` for everything else).
-- The TV Remote item and its menus (`/collins remote`).
+- The TV Remote item and its menus (`/collins remote`), with a custom model.
+- A visible panel over every screen, for players with and without the mod.
 - Ported to Paper 26.3 (paper-api 26.3.build.230-stable, Java 25).
 - The Modrinth update checker is off by default (`updates.check_modrinth` in
   `config.yml`); this fork is private and never published there.

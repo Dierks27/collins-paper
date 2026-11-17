@@ -68,12 +68,46 @@ public final class RemoteItem {
         Bukkit.removeRecipe(key);
     }
 
+    /** The configured item model, or null for none (blank or invalid; invalid is logged). */
+    private NamespacedKey itemModel() {
+        String raw = plugin.getConfig().getString("remote.item_model", "collins:tv_remote");
+        String id = org.sawiq.collins.paper.util.ModelIds.parse(raw);
+        if (id == null) {
+            if (warnedModel == null || !warnedModel.equals(raw)) {
+                warnedModel = raw;
+                plugin.getLogger().warning("config.yml remote.item_model '" + raw
+                        + "' is not a valid model id (like collins:tv_remote); the remote gets no custom model.");
+            }
+            return null;
+        }
+        return id.isEmpty() ? null : NamespacedKey.fromString(id);
+    }
+
+    private String warnedModel;
+
+    /**
+     * Brings the item model of an existing remote in line with the config.
+     * Changes nothing else about the item. Returns whether it changed.
+     */
+    public boolean refreshModel(ItemStack stack) {
+        if (!is(stack)) return false;
+        ItemMeta meta = stack.getItemMeta();
+        NamespacedKey want = itemModel();
+        NamespacedKey have = meta.hasItemModel() ? meta.getItemModel() : null;
+        if (java.util.Objects.equals(want, have)) return false;
+        meta.setItemModel(want);
+        stack.setItemMeta(meta);
+        return true;
+    }
+
     public ItemStack create() {
         ItemStack stack = new ItemStack(material());
         ItemMeta meta = stack.getItemMeta();
         meta.displayName(text(lang.raw("remote.item.name")));
         meta.lore(lines(lang.raw("remote.item.lore")));
-        meta.setEnchantmentGlintOverride(true);
+        if (plugin.getConfig().getBoolean("remote.glint", true)) meta.setEnchantmentGlintOverride(true);
+        NamespacedKey model = itemModel();
+        if (model != null) meta.setItemModel(model);
         meta.setMaxStackSize(1);
         meta.getPersistentDataContainer().set(key, PersistentDataType.BYTE, (byte) 1);
         stack.setItemMeta(meta);

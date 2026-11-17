@@ -12,6 +12,7 @@ import org.sawiq.collins.paper.model.Playlist;
 import org.sawiq.collins.paper.model.Screen;
 import org.sawiq.collins.paper.net.CollinsClientMessageListener;
 import org.sawiq.collins.paper.net.CollinsMessenger;
+import org.sawiq.collins.paper.panel.PanelManager;
 import org.sawiq.collins.paper.protect.BuildProtection;
 import org.sawiq.collins.paper.remote.RemoteController;
 import org.sawiq.collins.paper.remote.RemoteItem;
@@ -42,6 +43,7 @@ public final class CollinsPaperPlugin extends JavaPlugin implements Listener {
     private CollinsRuntimeState runtime;
     private Lang lang;
     private UrlPolicy urlPolicy;
+    private PanelManager panels;
     private ScreenActions screenActions;
     private RemoteController remoteController;
     private RemoteItem remoteItem;
@@ -103,6 +105,11 @@ public final class CollinsPaperPlugin extends JavaPlugin implements Listener {
         remoteController = new RemoteController(this, store, runtime, screenActions, selection, remoteItem, lang);
         Bukkit.getPluginManager().registerEvents(remoteController, this);
         remoteItem.registerRecipe();
+
+        // The visible "switched-off TV" over every screen.
+        panels = new PanelManager(this, store, getConfig().getConfigurationSection("screens.panel"));
+        Bukkit.getPluginManager().registerEvents(panels, this);
+        panels.spawnAll();
 
         CollinsCommand collinsCommand = new CollinsCommand(store, screenActions, remoteItem, lang);
         var pluginCmd = getCommand("collins");
@@ -848,10 +855,35 @@ public final class CollinsPaperPlugin extends JavaPlugin implements Listener {
             cfg.set("screens.respectProtection", true);
             changed = true;
         }
+        if (!cfg.isSet("screens.panel")) {
+            cfg.set("screens.panel.enabled", true);
+            cfg.set("screens.panel.block", "BLACK_CONCRETE");
+            cfg.set("screens.panel.depth", 0.004);
+            cfg.set("screens.panel.offset", 0.001);
+            cfg.set("screens.panel.brightness", -1);
+            cfg.setComments("screens.panel", java.util.List.of(
+                    "The panel that shows every screen as a switched-off TV (since 1.9.0).",
+                    "block: what it looks like (BLACK_CONCRETE, WHITE_CONCRETE, WHITE_CARPET, ...).",
+                    "offset + depth must stay below 0.01 blocks, or the panel covers the video.",
+                    "brightness: -1 = light of the world, 0..15 = always that bright.",
+                    "After changing these, /collins panel refresh applies them without a restart."));
+            changed = true;
+        }
+        if (!cfg.isSet("remote.item_model")) {
+            cfg.set("remote.item_model", "collins:tv_remote");
+            cfg.setComments("remote.item_model", java.util.List.of(
+                    "Item model for the TV Remote, from the server resource pack. Blank = the plain item."));
+            changed = true;
+        }
+        if (!cfg.isSet("remote.glint")) {
+            cfg.set("remote.glint", true);
+            cfg.setComments("remote.glint", java.util.List.of("Enchantment shimmer on newly made remotes."));
+            changed = true;
+        }
         if (changed) {
             saveConfig();
             getLogger().info("config.yml: added the settings introduced since it was written"
-                    + " (security.restrictHosts, security.allowedHosts, screens.*).");
+                    + " (security.*, screens.*, remote.*).");
         }
     }
 
@@ -931,6 +963,21 @@ public final class CollinsPaperPlugin extends JavaPlugin implements Listener {
         return lang;
     }
 
+    public PanelManager panels() {
+        return panels;
+    }
+
+    /**
+     * Re-reads {@code screens.panel} from config.yml on disk (without
+     * reloading the rest of the config) and rebuilds the panels of one
+     * screen, or all of them when {@code screenName} is null.
+     */
+    public void refreshPanels(String screenName) {
+        var onDisk = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(
+                new java.io.File(getDataFolder(), "config.yml"));
+        panels.refresh(onDisk.getConfigurationSection("screens.panel"), screenName);
+    }
+
     public ScreenStore getStore() {
         return store;
     }
@@ -956,6 +1003,9 @@ public final class CollinsPaperPlugin extends JavaPlugin implements Listener {
         // clear them: a /reload would lose useful probe history for
         // no benefit.
         SelectionVisualizer.stopAll();
+        if (panels != null) {
+            panels.removeAll();
+        }
         if (remoteController != null) {
             remoteController.closeAllMenus();
         }

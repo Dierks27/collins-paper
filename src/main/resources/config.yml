@@ -26,9 +26,19 @@ updates:
 #     игроков) могут скрафтить пульт (рецепт есть
 #     в книге рецептов): стеклянная панель сверху, железо-редстоун-железо
 #     посередине, железо снизу. false = пульт выдаётся только командой.
+#
+#     item_model: the remote's look from the server resource pack (Jeff's
+#     Blockbench model, shipped as plugins/CraftBridge/pack/sources/collins.zip).
+#     Blank = the plain material. Existing remotes pick it up when their
+#     holder joins or uses them.
+#     glint: the enchantment shimmer on newly made remotes.
+# RU: item_model: модель пульта из ресурспака сервера. Пусто = обычный предмет.
+#     glint: блеск зачарования на новых пультах.
 remote:
   material: BLAZE_ROD
   craftable: true
+  item_model: "collins:tv_remote"
+  glint: true
 
 # EN: Screens belong to the player who made them (since 1.8.0). Players with
 #     collins.use manage their own; collins.admin manages everyone's.
@@ -42,9 +52,26 @@ remote:
 #         лимита. На админов лимит не действует.
 #     respectProtection: не давать ставить экран там, где Towny или
 #         WorldGuard не разрешают игроку строить. Админы не проверяются.
+#
+#     panel: a thin block over both faces of every screen, so it shows as a
+#     switched-off TV to everyone, with or without the client mod. The client
+#     mod draws the video 0.01 blocks out from the screen's blocks, so the
+#     panel must stay closer than that: keep offset + depth below 0.01.
+#       block: BLACK_CONCRETE, WHITE_CONCRETE, WHITE_CARPET (drawn as wool), ...
+#       depth: thickness in blocks.  offset: gap out from the block face.
+#       brightness: -1 = light of the world, 0..15 = always that bright.
+#     /collins panel refresh applies changes without a restart.
+# RU: panel: тонкая панель на обеих сторонах экрана, видна всем, даже без мода.
+#     offset + depth должны быть меньше 0.01, иначе панель закроет видео.
 screens:
   maxPerPlayer: 3
   respectProtection: true
+  panel:
+    enabled: true
+    block: BLACK_CONCRETE
+    depth: 0.004
+    offset: 0.001
+    brightness: -1
 
 video:
   # EN: Default max YouTube quality for newly created screens.

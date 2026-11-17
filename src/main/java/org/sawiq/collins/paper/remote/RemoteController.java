@@ -110,6 +110,19 @@ public final class RemoteController implements Listener {
         if (p.hasPermission(CRAFT_PERMISSION) && Bukkit.getRecipe(item.key()) != null) {
             p.discoverRecipe(item.key());
         }
+        // Remotes made before remote.item_model existed (or before it was
+        // changed) get the current model. Only the model is touched.
+        var inv = p.getInventory();
+        for (int i = 0; i < inv.getSize(); i++) {
+            var stack = inv.getItem(i);
+            if (item.refreshModel(stack)) inv.setItem(i, stack);
+        }
+    }
+
+    /** Same as on join, for the remote in the hand that just used it. */
+    private void refreshHeld(Player p, EquipmentSlot hand) {
+        var stack = p.getInventory().getItem(hand);
+        if (item.refreshModel(stack)) p.getInventory().setItem(hand, stack);
     }
 
     // ==================== Using the remote ====================
@@ -124,6 +137,7 @@ public final class RemoteController implements Listener {
         // The remote never does what the vanilla item (or the block behind it) would.
         e.setCancelled(true);
         if (e.getHand() != EquipmentSlot.HAND) return;
+        refreshHeld(e.getPlayer(), EquipmentSlot.HAND);
 
         boolean left = e.getAction() == Action.LEFT_CLICK_AIR || e.getAction() == Action.LEFT_CLICK_BLOCK;
         use(e.getPlayer(), left, e.getClickedBlock());
@@ -134,7 +148,10 @@ public final class RemoteController implements Listener {
         Player p = e.getPlayer();
         if (!item.is(p.getInventory().getItem(e.getHand())) && !holdsRemote(p)) return;
         e.setCancelled(true);
-        if (e.getHand() == EquipmentSlot.HAND) use(p, false, null);
+        if (e.getHand() == EquipmentSlot.HAND) {
+            refreshHeld(p, EquipmentSlot.HAND);
+            use(p, false, null);
+        }
     }
 
     @EventHandler(ignoreCancelled = true)

@@ -162,6 +162,24 @@ public final class ScreenActions {
         return false;
     }
 
+    /**
+     * Admin: re-read {@code screens.panel} from config.yml and rebuild the
+     * panels of one screen, or of every screen when {@code name} is null.
+     */
+    public boolean refreshPanels(Player p, String name) {
+        if (!requireAdmin(p)) return false;
+        Screen s = null;
+        if (name != null) {
+            s = requireScreen(p, name);
+            if (s == null) return false;
+        }
+        plugin.refreshPanels(s == null ? null : s.name());
+        if (s == null) lang.send(p, "cmd.panel.refreshed_all", lang.vars("count", store.all().size()));
+        else lang.send(p, "cmd.panel.refreshed", lang.vars("name", s.name()));
+        plugin.getLogger().info(p.getName() + " refreshed panels" + (s == null ? "" : " of '" + s.name() + "'"));
+        return true;
+    }
+
     /** Admin: hand a screen to {@code newOwner}, or to nobody (null). */
     public boolean setOwner(Player p, String name, Player newOwner) {
         if (!requireAdmin(p)) return false;
@@ -302,6 +320,8 @@ public final class ScreenActions {
         store.put(screen);
         store.setOwner(screen.name(), new ScreenStore.Owner(p.getUniqueId(), p.getName()));
         store.save();
+        if (existing != null) plugin.panels().screenRemoved(existing); // old shape may be elsewhere
+        plugin.panels().screenChanged(screen);
 
         runtime.resetPlayback(screen.name()); // чтобы новый экран не унаследовал таймер
 
@@ -322,6 +342,7 @@ public final class ScreenActions {
         }
 
         store.save();
+        plugin.panels().screenRemoved(removed);
         runtime.resetPlayback(removed.name());
         runtime.remove(removed.name());
         Playlist.remove(removed.name());

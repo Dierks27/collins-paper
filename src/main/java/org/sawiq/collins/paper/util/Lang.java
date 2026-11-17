@@ -95,7 +95,7 @@ public final class Lang {
             // show the new commands.
             String dh = defaults.getString("cmd.help");
             String fh = fileCfg.getString("cmd.help");
-            if (dh != null && fh != null && (missing(dh, fh, "/collins remote") || missing(dh, fh, "/collins owner"))) {
+            if (dh != null && fh != null && (missing(dh, fh, "/collins remote") || missing(dh, fh, "/collins owner") || missing(dh, fh, "/collins panel"))) {
                 fileCfg.set("cmd.help", dh);
                 changed = true;
             }

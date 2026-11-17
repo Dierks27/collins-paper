@@ -1,5 +1,5 @@
 name: collins-paper
-version: 1.8.0
+version: 1.9.0
 main: org.sawiq.collins.paper.CollinsPaperPlugin
 api-version: "1.21"
 folia-supported: true
@@ -11,7 +11,7 @@ softdepend: [Towny, WorldGuard]
 commands:
   collins:
     description: Collins screens manager
-    usage: /collins <pos1|pos2|create|seturl|play|stop|pause|resume|loop|quality|seek|back|volume|radius|remove|list|playlist|owner|remote>
+    usage: /collins <pos1|pos2|create|seturl|play|stop|pause|resume|loop|quality|seek|back|volume|radius|remove|list|playlist|owner|panel|remote>
     aliases: [col]
 
 permissions:
