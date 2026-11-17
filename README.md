@@ -171,8 +171,8 @@ plugin: it is the CraftBridge pack source
 `plugins/CraftBridge/pack/sources/collins.zip`, so it can be changed in
 Blockbench without a plugin release. Blank = the plain item. Remotes made
 earlier pick up the model when their holder joins or uses them (only the
-model changes). `remote.glint` (default `true`) puts the enchantment shimmer
-on newly made remotes.
+model and the glint change). `remote.glint` (default `false`) turns the enchantment shimmer
+on or off; existing remotes follow the setting the same way as the model.
 
 ## Differences from upstream
 

@@ -85,19 +85,37 @@ public final class RemoteItem {
 
     private String warnedModel;
 
+    private boolean glint() {
+        return plugin.getConfig().getBoolean("remote.glint", false);
+    }
+
     /**
-     * Brings the item model of an existing remote in line with the config.
-     * Changes nothing else about the item. Returns whether it changed.
+     * Brings the look of an existing remote (item model and glint) in line
+     * with the config. Changes nothing else about the item. Returns whether
+     * it changed.
      */
     public boolean refreshModel(ItemStack stack) {
         if (!is(stack)) return false;
         ItemMeta meta = stack.getItemMeta();
+        boolean changed = false;
+
         NamespacedKey want = itemModel();
         NamespacedKey have = meta.hasItemModel() ? meta.getItemModel() : null;
-        if (java.util.Objects.equals(want, have)) return false;
-        meta.setItemModel(want);
-        stack.setItemMeta(meta);
-        return true;
+        if (!java.util.Objects.equals(want, have)) {
+            meta.setItemModel(want);
+            changed = true;
+        }
+
+        // Glint on = forced on; off = no override (an unenchanted item has none).
+        boolean wantGlint = glint();
+        boolean haveGlint = meta.hasEnchantmentGlintOverride() && meta.getEnchantmentGlintOverride();
+        if (wantGlint != haveGlint) {
+            meta.setEnchantmentGlintOverride(wantGlint ? Boolean.TRUE : null);
+            changed = true;
+        }
+
+        if (changed) stack.setItemMeta(meta);
+        return changed;
     }
 
     public ItemStack create() {
@@ -105,7 +123,7 @@ public final class RemoteItem {
         ItemMeta meta = stack.getItemMeta();
         meta.displayName(text(lang.raw("remote.item.name")));
         meta.lore(lines(lang.raw("remote.item.lore")));
-        if (plugin.getConfig().getBoolean("remote.glint", true)) meta.setEnchantmentGlintOverride(true);
+        if (glint()) meta.setEnchantmentGlintOverride(true);
         NamespacedKey model = itemModel();
         if (model != null) meta.setItemModel(model);
         meta.setMaxStackSize(1);
