@@ -21,6 +21,7 @@ import org.sawiq.collins.paper.selection.SelectionVisualizer;
 import org.sawiq.collins.paper.state.CollinsRuntimeState;
 import org.sawiq.collins.paper.store.PlaylistStore;
 import org.sawiq.collins.paper.store.ScreenStore;
+import org.sawiq.collins.paper.store.TitleStore;
 import org.sawiq.collins.paper.update.ModrinthVersionChecker;
 import org.sawiq.collins.paper.util.FFprobeUtil;
 import org.sawiq.collins.paper.util.Lang;
@@ -38,6 +39,7 @@ public final class CollinsPaperPlugin extends JavaPlugin implements Listener {
 
     private ScreenStore store;
     private PlaylistStore playlistStore;
+    private TitleStore titles;
     private CollinsMessenger messenger;
     private SelectionService selection;
     private CollinsRuntimeState runtime;
@@ -86,6 +88,12 @@ public final class CollinsPaperPlugin extends JavaPlugin implements Listener {
 
         playlistStore = new PlaylistStore(this);
         playlistStore.load();
+
+        // Video titles (from the site) and names (typed by players).
+        titles = new TitleStore(this);
+        titles.load();
+        titles.prune(urlsInUse());
+        FFprobeUtil.setTitleListener(titles::putTitle);
 
         urlPolicy = new UrlPolicy(
                 getConfig().getBoolean("security.restrictHosts", true),
@@ -187,6 +195,7 @@ public final class CollinsPaperPlugin extends JavaPlugin implements Listener {
                     memCheckIntervalMs, memCheckIntervalMs, java.util.concurrent.TimeUnit.MILLISECONDS);
         }
 
+        lookUpMissingTitles();
         for (Screen screen : store.all()) {
             prefetchDuration(screen);
         }
@@ -962,6 +971,46 @@ public final class CollinsPaperPlugin extends JavaPlugin implements Listener {
 
     public Lang lang() {
         return lang;
+    }
+
+    public TitleStore titles() {
+        return titles;
+    }
+
+    /** Screen name (lower case) -> the addresses on it: its current video and its playlist. */
+    private Map<String, Set<String>> urlsInUse() {
+        Map<String, Set<String>> inUse = new java.util.HashMap<>();
+        for (Screen s : store.all()) {
+            Set<String> urls = inUse.computeIfAbsent(s.name().toLowerCase(java.util.Locale.ROOT), k -> new java.util.HashSet<>());
+            if (s.mp4Url() != null && !s.mp4Url().isBlank()) urls.add(s.mp4Url().trim());
+            Playlist playlist = Playlist.get(s.name());
+            if (playlist != null) {
+                for (Playlist.PlaylistEntry e : playlist.getEntries()) urls.add(e.url().trim());
+            }
+        }
+        return inUse;
+    }
+
+    /**
+     * At startup: ask the site for the titles of videos saved before titles
+     * existed. One at a time, so a long playlist does not start dozens of
+     * yt-dlp processes at once. The title arrives with the same yt-dlp run
+     * that measures the video's length.
+     */
+    private void lookUpMissingTitles() {
+        java.util.LinkedHashSet<String> missing = new java.util.LinkedHashSet<>();
+        urlsInUse().values().forEach(urls -> urls.forEach(u -> { if (!titles.hasTitle(u)) missing.add(u); }));
+        if (missing.isEmpty()) return;
+        java.util.concurrent.CompletableFuture<Long> chain = java.util.concurrent.CompletableFuture.completedFuture(0L);
+        for (String url : missing) {
+            chain = chain.thenCompose(v -> FFprobeUtil.getDurationMs(url).exceptionally(t -> 0L));
+        }
+    }
+
+    /** Looks up a video's title in the background (no-op when known or not a site yt-dlp handles). */
+    public void lookUpTitle(String url) {
+        if (url == null || url.isBlank() || titles.hasTitle(url)) return;
+        FFprobeUtil.getDurationMs(url);
     }
 
     public PanelManager panels() {

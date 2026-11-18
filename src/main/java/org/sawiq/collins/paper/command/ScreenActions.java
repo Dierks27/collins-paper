@@ -343,6 +343,7 @@ public final class ScreenActions {
 
         store.save();
         plugin.panels().screenRemoved(removed);
+        plugin.titles().forgetScreen(removed.name());
         runtime.resetPlayback(removed.name());
         runtime.remove(removed.name());
         Playlist.remove(removed.name());
@@ -538,7 +539,7 @@ public final class ScreenActions {
                     lang.send(p, "cmd.seeked_playlist_next", lang.vars(
                             "name", s.name(),
                             "index", nextEntry.index(),
-                            "title", nextEntry.title()
+                            "title", titleOf(s.name(), nextEntry)
                     ));
                     return true;
                 }
@@ -663,8 +664,9 @@ public final class ScreenActions {
         Playlist playlist = Playlist.getOrCreate(screenName);
         int index = playlist.add(safeUrl);
         Playlist.PlaylistEntry entry = playlist.get(index);
+        plugin.lookUpTitle(safeUrl);
 
-        lang.send(p, "playlist.added", lang.vars("index", index, "title", entry.title()));
+        lang.send(p, "playlist.added", lang.vars("index", index, "title", titleOf(screenName, entry)));
         playlistStore.save();
         plugin.getLogger().info(p.getName() + " playlist add '" + screenName + "' [" + index + "] " + url);
         return true;
@@ -814,8 +816,66 @@ public final class ScreenActions {
         int total = playlist != null ? playlist.size() : 0;
         int current = playlist != null ? playlist.getCurrentIndex() : entry.index();
 
-        lang.send(p, "playlist.playing", lang.vars("current", current, "total", total, "title", entry.title()));
+        lang.send(p, "playlist.playing", lang.vars("current", current, "total", total, "title", titleOf(screen.name(), entry)));
         plugin.getLogger().info(p.getName() + " playlist play '" + screen.name() + "' [" + entry.index() + "] " + url);
+        return true;
+    }
+
+    // ==================== Video names ====================
+
+    /** What a playlist entry is called on a screen: its name, else its title, else its short address. */
+    public String titleOf(String screen, Playlist.PlaylistEntry entry) {
+        return plugin.titles().titleFor(screen, entry.url(), entry.title());
+    }
+
+    /** What the screen's current video is called, or "" when it has none. */
+    public String titleOf(Screen s) {
+        return plugin.titles().titleFor(s.name(), s.mp4Url());
+    }
+
+    /** Typed "reset" (any case): go back to the site's title. */
+    private static boolean isReset(String name) {
+        return name == null || name.isBlank() || name.trim().equalsIgnoreCase("reset");
+    }
+
+    /** Names the screen's current video; "reset" goes back to the site's title. */
+    public boolean nameVideo(Player p, String screenName, String name) {
+        Screen s = requireOwnScreen(p, screenName);
+        if (s == null) return false;
+        if (s.mp4Url() == null || s.mp4Url().isBlank()) {
+            lang.send(p, "error.name_no_video", lang.vars("name", s.name()));
+            return false;
+        }
+        return applyName(p, s.name(), s.mp4Url(), name);
+    }
+
+    /** Names playlist entry {@code index}; "reset" goes back to the site's title. */
+    public boolean nameEntry(Player p, String screenName, int index, String name) {
+        if (requireOwnScreen(p, screenName) == null) return false;
+        Playlist playlist = requirePlaylist(p, screenName);
+        if (playlist == null) return false;
+        Playlist.PlaylistEntry entry = playlist.get(index);
+        if (entry == null) {
+            lang.send(p, "playlist.index_out_of_range", lang.vars("max", playlist.size()));
+            return false;
+        }
+        return applyName(p, screenName, entry.url(), name);
+    }
+
+    private boolean applyName(Player p, String screenName, String url, String name) {
+        if (isReset(name)) {
+            plugin.titles().setName(screenName, url, null);
+            plugin.lookUpTitle(url);
+            lang.send(p, "cmd.name.reset", lang.vars("title", plugin.titles().titleFor(screenName, url)));
+            return true;
+        }
+        String stored = plugin.titles().setName(screenName, url, name);
+        if (stored == null) {
+            lang.send(p, "error.name_empty");
+            return false;
+        }
+        lang.send(p, "cmd.name.set", lang.vars("title", stored));
+        plugin.getLogger().info(p.getName() + " named a video on '" + screenName + "': " + stored);
         return true;
     }
 

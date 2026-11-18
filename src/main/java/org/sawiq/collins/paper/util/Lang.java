@@ -95,8 +95,16 @@ public final class Lang {
             // show the new commands.
             String dh = defaults.getString("cmd.help");
             String fh = fileCfg.getString("cmd.help");
-            if (dh != null && fh != null && (missing(dh, fh, "/collins remote") || missing(dh, fh, "/collins owner") || missing(dh, fh, "/collins panel"))) {
+            if (dh != null && fh != null && (missing(dh, fh, "/collins remote") || missing(dh, fh, "/collins owner") || missing(dh, fh, "/collins panel") || missing(dh, fh, "/collins name"))) {
                 fileCfg.set("cmd.help", dh);
+                changed = true;
+            }
+
+            // The screen list line gained the video's name in 1.10.0.
+            String di = defaults.getString("cmd.screens.item");
+            String fi = fileCfg.getString("cmd.screens.item");
+            if (di != null && fi != null && missing(di, fi, "{title}")) {
+                fileCfg.set("cmd.screens.item", di);
                 changed = true;
             }
 

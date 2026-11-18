@@ -142,6 +142,25 @@ public class FFprobeUtil {
         return ToolsDownloader.getYtdlpPath();
     }
 
+    /** Told the title of every video yt-dlp describes (url, title). */
+    private static volatile java.util.function.BiConsumer<String, String> titleListener;
+
+    public static void setTitleListener(java.util.function.BiConsumer<String, String> listener) {
+        titleListener = listener;
+    }
+
+    private static void reportTitle(String url, String json) {
+        var listener = titleListener;
+        if (listener == null) return;
+        String title = VideoTitles.fromYtDlpJson(json);
+        if (title == null) return;
+        try {
+            listener.accept(url, title);
+        } catch (RuntimeException e) {
+            if (logger != null) logger.warning("Could not store the title of " + shortenUrl(url) + ": " + e);
+        }
+    }
+
     public static CompletableFuture<Long> getDurationMs(String url) {
         if (!isProbeSafeUrl(url)) {
             // Refuse to launch yt-dlp/ffprobe on URLs that aren't plain
@@ -539,6 +558,9 @@ public class FFprobeUtil {
         if (result.isEmpty()) {
             throw new Exception("yt-dlp returned empty duration");
         }
+
+        // The same JSON carries the title: no extra yt-dlp run for it.
+        reportTitle(url, result);
 
         if (isLiveJson(result)) {
             return new ProbeResult(0L, true);
