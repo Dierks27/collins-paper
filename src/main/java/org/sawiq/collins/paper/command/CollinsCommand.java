@@ -206,6 +206,7 @@ public final class CollinsCommand implements TabExecutor {
                 for (Screen s : store.all()) {
                     lang.send(p, "cmd.screens.item", lang.vars(
                             "name", s.name(),
+                            "title", actions.titleOf(s).isEmpty() ? "-" : actions.titleOf(s),
                             "url", (s.mp4Url() == null ? "" : s.mp4Url()),
                             "playing", s.playing(),
                             "loop", s.loop(),
@@ -217,6 +218,12 @@ public final class CollinsCommand implements TabExecutor {
 
             case "playlist" -> {
                 return handlePlaylist(p, args);
+            }
+
+            case "name" -> {
+                if (args.length < 3) { usage(p, "/collins name <screen> <name...|reset>"); return true; }
+                actions.nameVideo(p, args[1], String.join(" ", java.util.Arrays.copyOfRange(args, 2, args.length)));
+                return true;
             }
 
             case "owner" -> {
@@ -304,13 +311,13 @@ public final class CollinsCommand implements TabExecutor {
                     "loop", "quality",
                     "seek", "back",
                     "volume", "radius",
-                    "remove", "list", "playlist", "owner", "panel", "remote"
+                    "remove", "list", "playlist", "name", "owner", "panel", "remote"
             ));
         }
 
         if (args.length == 2) {
             String sub = args[0].toLowerCase(Locale.ROOT);
-            if (sub.equals("seturl") || sub.equals("play") || sub.equals("stop") || sub.equals("pause") || sub.equals("resume") || sub.equals("loop") || sub.equals("quality") || sub.equals("remove") || sub.equals("seek") || sub.equals("back") || sub.equals("owner")) {
+            if (sub.equals("seturl") || sub.equals("play") || sub.equals("stop") || sub.equals("pause") || sub.equals("resume") || sub.equals("loop") || sub.equals("quality") || sub.equals("remove") || sub.equals("seek") || sub.equals("back") || sub.equals("owner") || sub.equals("name")) {
                 List<String> names = new ArrayList<>();
                 for (Screen s : store.all()) names.add(s.name());
                 return startsWith(args[1], names);
@@ -356,7 +363,7 @@ public final class CollinsCommand implements TabExecutor {
         }
 
         if (args.length == 3 && args[0].equalsIgnoreCase("playlist")) {
-            return startsWith(args[2], List.of("add", "remove", "play", "next", "prev", "list", "clear", "loop", "enable", "disable"));
+            return startsWith(args[2], List.of("add", "remove", "play", "next", "prev", "list", "name", "clear", "loop", "enable", "disable"));
         }
 
         if (args.length == 4 && args[0].equalsIgnoreCase("playlist")) {
@@ -453,6 +460,22 @@ public final class CollinsCommand implements TabExecutor {
                 return showPlaylistInfo(p, screenName);
             }
 
+            case "name" -> {
+                if (args.length < 5) {
+                    usage(p, "/collins playlist " + screenName + " name <index> <name...|reset>");
+                    return true;
+                }
+                int index;
+                try {
+                    index = Integer.parseInt(args[3]);
+                } catch (NumberFormatException e) {
+                    lang.send(p, "error.bad_number");
+                    return true;
+                }
+                actions.nameEntry(p, screenName, index, String.join(" ", java.util.Arrays.copyOfRange(args, 4, args.length)));
+                return true;
+            }
+
             case "clear" -> {
                 actions.playlistClear(p, screenName);
                 return true;
@@ -514,7 +537,7 @@ public final class CollinsCommand implements TabExecutor {
         for (Playlist.PlaylistEntry e : playlist.getEntries()) {
             boolean current = e.index() == playlist.getCurrentIndex();
             lang.send(p, current ? "playlist.entry.current" : "playlist.entry.normal",
-                    lang.vars("index", e.index(), "title", e.title()));
+                    lang.vars("index", e.index(), "title", actions.titleOf(screenName, e)));
         }
         return true;
     }

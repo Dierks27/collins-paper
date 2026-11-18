@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "org.sawiq"
-version = "1.9.1"
+version = "1.10.0"
 
 repositories {
     mavenCentral()
@@ -26,6 +26,8 @@ dependencies {
 
     testImplementation platform("org.junit:junit-bom:5.13.4")
     testImplementation "org.junit.jupiter:junit-jupiter"
+    // Bundled with Paper at runtime; the tests need it on their own classpath.
+    testImplementation "com.google.code.gson:gson:2.14.0"
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 }
 

@@ -71,9 +71,35 @@ For an admin group that is not op, e.g. LuckPerms:
 - `/collins volume set <0..2>|reset`, `/collins radius set <1..512>|reset` (admins; both are server-wide).
 - `/collins playlist <screen> add <url>|remove <index>|play [index]|next|prev|list|clear|loop on|off|enable|disable`.
 - `/collins list`, `/collins remove <screen>`.
+- `/collins name <screen> <name...>` - name the video on the screen; `reset` goes back to the video's own title.
+- `/collins playlist <screen> name <index> <name...>` - name a playlist video; `reset` as above.
 - `/collins owner <screen> [player|none]` - show the owner; admins can change it.
 - `/collins panel refresh [screen]` - admins: re-read `screens.panel` from `config.yml` and rebuild the panels of one screen or all (see below).
 - `/collins remote [player]` - hand out a TV Remote (see below).
+
+## Video names
+
+Videos show by name instead of by link: in the TV Remote's screen list, the
+screen menu and the playlist, and in chat (`/collins list`, the playlist
+commands).
+
+- **Automatic**: the video's own title, from the site (YouTube, Twitch,
+  RuTube, VK, ...). It comes from the same `yt-dlp` check the server already
+  runs to measure a video's length, so it costs nothing extra. It appears a
+  few seconds after a link is set or added. Videos saved before 1.10.0 are
+  looked up one at a time at startup.
+- **By hand**: `/collins name <screen> <name...>`, `/collins playlist <screen>
+  name <index> <name...>`, or the remote ("Name this video" in the screen
+  menu; right-click a video in the playlist). A name wins over the title;
+  `reset` goes back to the title. Naming needs the same rights as changing
+  the screen.
+- A name belongs to one screen: naming a video on your screen never changes
+  what it is called on someone else's. A site's title is shared by every
+  screen with that link.
+- Direct video files (`.mp4` and the like) have no title; they show their file
+  name until someone names them.
+- Names and titles are cut to 64 characters, and colour codes in them are
+  ignored. They are kept in `plugins/collins-paper/titles.yml`.
 
 ## Screen panel
 
@@ -179,6 +205,7 @@ on or off; existing remotes follow the setting the same way as the model.
 - Regular players can only play YouTube and Twitch (`security.allowedHosts`,
   permission `collins.url.any` for everything else).
 - The TV Remote item and its menus (`/collins remote`), with a custom model.
+- Videos show by name: the site's title, or a name a player gives them.
 - A visible panel over every screen, for players with and without the mod.
 - Ported to Paper 26.3 (paper-api 26.3.build.230-stable, Java 25).
 - The Modrinth update checker is off by default (`updates.check_modrinth` in

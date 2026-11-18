@@ -43,6 +43,7 @@ final class RemoteMenu implements InventoryHolder {
     private static final long CONFIRM_MS = 5000L;
     private static final int SEEK_SECONDS = 30;
     private static final java.util.Set<String> SHOWS_OWNER = java.util.Set.of("remote.list.screen", "remote.screen.info");
+    private static final java.util.Set<String> RENAMEABLE = java.util.Set.of("remote.playlist.entry", "remote.playlist.entry_current");
 
     /** {@code limited}: counts against the per-player action rate limit. */
     private record Button(boolean limited, Consumer<ClickType> onClick) {}
@@ -237,6 +238,15 @@ final class RemoteMenu implements InventoryHolder {
                 if (ctl.actions.setUrl(p, name, url)) ctl.actions.play(p, name);
             }, null);
         });
+        if (s.mp4Url() != null && !s.mp4Url().isBlank()) {
+            set(20, Material.WRITABLE_BOOK, false, "remote.screen.name_video", vars, false, c -> {
+                ctl.later(player, player::closeInventory);
+                ctl.ask(player, "remote.prompt.name", (p, text) -> {
+                    ctl.actions.nameVideo(p, name, text);
+                    new RemoteMenu(ctl, p, View.SCREEN, name).open();
+                }, null);
+            });
+        }
         set(21, Material.BOOKSHELF, false, "remote.screen.playlist",
                 lang.vars("count", playlistSize(name)), false, c -> openLater(View.PLAYLIST, name));
         set(23, Material.REPEATER, s.loop(), s.loop() ? "remote.screen.loop_on" : "remote.screen.loop_off", vars, true,
@@ -262,9 +272,18 @@ final class RemoteMenu implements InventoryHolder {
                     : isCurrent ? "remote.playlist.entry_current" : "remote.playlist.entry";
             int index = e.index();
             set(i, isCurrent ? Material.GLOW_ITEM_FRAME : Material.ITEM_FRAME, isCurrent, key,
-                    lang.vars("index", index, "title", e.title(), "url", shorten(e.url())), true, c -> {
-                        if (removeMode || c.isShiftClick()) ctl.actions.playlistRemove(player, name, index);
-                        else ctl.actions.playlistPlay(player, name, index);
+                    lang.vars("index", index, "title", ctl.actions.titleOf(name, e), "url", shorten(e.url())), true, c -> {
+                        if (removeMode || c.isShiftClick()) {
+                            ctl.actions.playlistRemove(player, name, index);
+                        } else if (c.isRightClick()) {
+                            ctl.later(player, player::closeInventory);
+                            ctl.ask(player, "remote.prompt.name", (p, text) -> {
+                                ctl.actions.nameEntry(p, name, index, text);
+                                new RemoteMenu(ctl, p, View.PLAYLIST, name).open();
+                            }, null);
+                        } else {
+                            ctl.actions.playlistPlay(player, name, index);
+                        }
                     });
         }
 
@@ -325,7 +344,16 @@ final class RemoteMenu implements InventoryHolder {
         if (lang.has(key + ".lore")) lore.addAll(RemoteItem.lines(lang.tr(key + ".lore", vars)));
         // The owner goes on as its own line, so it shows even with a lang
         // file whose lore texts were written before screens had owners.
-        if (SHOWS_OWNER.contains(key)) lore.add(RemoteItem.text(lang.tr("remote.owner_line", vars)));
+        if (SHOWS_OWNER.contains(key)) {
+            // Same for the video's name (since 1.10.0).
+            if (vars.containsKey("title") && !vars.get("title").isEmpty()) {
+                lore.add(0, RemoteItem.text(lang.tr("remote.title_line", vars)));
+            }
+            lore.add(RemoteItem.text(lang.tr("remote.owner_line", vars)));
+        }
+        if (RENAMEABLE.contains(key) && !removeMode) {
+            lore.add(RemoteItem.text(lang.tr("remote.playlist.rename_hint", vars)));
+        }
         if (!lore.isEmpty()) meta.lore(lore);
         if (glint) meta.setEnchantmentGlintOverride(true);
         stack.setItemMeta(meta);
@@ -357,6 +385,7 @@ final class RemoteMenu implements InventoryHolder {
                 "loop", lang.raw(s.loop() ? "remote.on" : "remote.off"),
                 "quality", YouTubeQuality.display(s.youtubeQuality()),
                 "owner", owner == null ? lang.raw("remote.none") : owner.name(),
+                "title", ctl.actions.titleOf(s),
                 "world", s.world(),
                 "x1", s.x1(), "y1", s.y1(), "z1", s.z1(),
                 "x2", s.x2(), "y2", s.y2(), "z2", s.z2(),
